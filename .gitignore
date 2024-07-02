@@ -1,0 +1,14 @@
+# ignore _isaac_sim symlink
+_isaac_sim
+
+# ignore data_storage
+data_storage
+
+# ignore .devcontainer
+.devcontainer
+
+# ignore sim logs
+logs
+
+# ignore docs
+docs
