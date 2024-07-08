@@ -44,6 +44,8 @@ from omni.isaac.lab.sim import SimulationContext
 # Pre-defined configs
 ##
 from omni.isaac.lab_assets import CARTPOLE_CFG  # isort:skip
+from omni.isaac.lab_assets.hsrb import HSRB_CFG  # isort:skip
+from omni.isaac.lab_assets.ridgeback_franka import RIDGEBACK_FRANKA_PANDA_CFG  # isort:skip
 
 
 def design_scene() -> tuple[dict, list[list[float]]]:
@@ -57,14 +59,23 @@ def design_scene() -> tuple[dict, list[list[float]]]:
 
     # Create separate groups called "Origin1", "Origin2", "Origin3"
     # Each group will have a robot in it
-    origins = [[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+    # origins = [1.0, 0.0, 0.0]
+    origins = []
+
+    # create a n x n grid of origins, spaced 1 unit apart
+    for i in range(10):
+        for j in range(10):
+            origins.append([i, j, 0.0])
+            prim_utils.create_prim(f"/World/Origin{i}{j}", "Xform", translation=[i, j, 0.0])
+
     # Origin 1
-    prim_utils.create_prim("/World/Origin1", "Xform", translation=origins[0])
+    # prim_utils.create_prim("/World/Origin1", "Xform", translation=origins)
     # Origin 2
-    prim_utils.create_prim("/World/Origin2", "Xform", translation=origins[1])
+    # prim_utils.create_prim("/World/Origin2", "Xform", translation=origins[1])
 
     # Articulation
-    cartpole_cfg = CARTPOLE_CFG.copy()
+    # cartpole_cfg = RIDGEBACK_FRANKA_PANDA_CFG.copy()
+    cartpole_cfg = HSRB_CFG.copy()
     cartpole_cfg.prim_path = "/World/Origin.*/Robot"
     cartpole = Articulation(cfg=cartpole_cfg)
 
@@ -82,10 +93,28 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, Articula
     # Define simulation stepping
     sim_dt = sim.get_physics_dt()
     count = 0
+
+    target_base_names = [
+        "joint_x",
+        "joint_y",
+        "joint_rz"
+    ]
+
+    # target_base_names = [
+    #     "dummy_base_prismatic_x_joint",
+    #     "dummy_base_prismatic_y_joint",
+    #     "dummy_base_revolute_z_joint"
+    # ]
+
+    target_base_index = [robot.data.joint_names.index(name) for name in target_base_names]
+
+    actions = robot.data.default_joint_pos.clone()
+
+
     # Simulation loop
     while simulation_app.is_running():
         # Reset
-        if count % 500 == 0:
+        if count % 1000 == 0:
             # reset counter
             count = 0
             # reset the scene entities
@@ -104,9 +133,55 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, Articula
             print("[INFO]: Resetting robot state...")
         # Apply random action
         # -- generate random joint efforts
-        efforts = torch.randn_like(robot.data.joint_pos) * 5.0
+        efforts = torch.ones_like(robot.data.joint_pos) * 0.5
+
+        # -- apply high efforts to joint_x, joint_y, joint_rz
+        # efforts[:, 0] = 0.1
+        # efforts[:, 1] = 0.1
+        # efforts[:, 2] = 0.1
+        if count == 0:
+            # rotate motion
+            actions[:, :3] = 0.0
+            actions[:, 2] = 1.0
+            print("rotate motion")
+        if count == 200:
+            #forward motion
+            actions[:, :3] = 0.0
+            actions[:, 0] = 1.0
+            print("forward motion")
+        elif count == 400:
+            #backward motion
+            actions[:, :3] = 0.0
+            actions[:, 0] = -1.0
+            print("backward motion")
+        elif count == 600:
+            #left motion
+            actions[:, :3] = 0.0
+            actions[:, 1] = 1.0
+            print("left motion")
+        elif count == 800:
+            #right motion
+            actions[:, :3] = 0.0
+            actions[:, 1] = -1.0
+            print("right motion")
+
+        # print is_fixed_base
+        # print("is_fixed_base: ", robot.is_fixed_base)
+
+        # print joint_names
+        # print("joint_names: ", robot.joint_names)
+
+        # print("data: ", robot.data.joint_stiffness)
+        
+        # -- print size of joint_pos and joint_vel
+        # print("joint_pos size: ", robot.data.joint_pos.size())
+        # print("joint_vel size: ", robot.data.joint_vel.size())
+
         # -- apply action to the robot
-        robot.set_joint_effort_target(efforts)
+        # print(target_base_index)
+        # robot.set_joint_position_target(efforts)
+        # robot.set_joint_position_target(actions[:, 3:], joint_ids=[3, 4, 5, 6, 7, 8, 9, 10, 11])
+        robot.set_joint_velocity_target(actions[:, :3], joint_ids=target_base_index)
         # -- write data to sim
         robot.write_data_to_sim()
         # Perform step
