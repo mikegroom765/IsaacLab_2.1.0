@@ -56,6 +56,27 @@ class ReachSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
 
+@configclass
+class HSRBReachSceneCfg(InteractiveSceneCfg):
+    """Configuration for the scene with a hsrb."""
+
+    # world
+    ground = AssetBaseCfg(
+        prim_path="/World/ground",
+        spawn=sim_utils.GroundPlaneCfg(),
+        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
+    )
+
+    # robots
+    robot: ArticulationCfg = MISSING
+
+    # lights
+    light = AssetBaseCfg(
+        prim_path="/World/light",
+        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
+    )
+
+
 
 ##
 # MDP settings
@@ -87,6 +108,7 @@ class ActionsCfg:
     """Action specifications for the MDP."""
 
     arm_action: ActionTerm = MISSING
+    base_action: ActionTerm = MISSING
     gripper_action: ActionTerm | None = None
 
 
@@ -103,6 +125,8 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
         actions = ObsTerm(func=mdp.last_action)
+
+        # TODO: Add global pose (odom) to the observation space
 
         def __post_init__(self):
             self.enable_corruption = True
@@ -187,6 +211,31 @@ class ReachEnvCfg(ManagerBasedRLEnvCfg):
 
     # Scene settings
     scene: ReachSceneCfg = ReachSceneCfg(num_envs=4096, env_spacing=2.5)
+    # Basic settings
+    observations: ObservationsCfg = ObservationsCfg()
+    actions: ActionsCfg = ActionsCfg()
+    commands: CommandsCfg = CommandsCfg()
+    # MDP settings
+    rewards: RewardsCfg = RewardsCfg()
+    terminations: TerminationsCfg = TerminationsCfg()
+    events: EventCfg = EventCfg()
+    curriculum: CurriculumCfg = CurriculumCfg()
+
+    def __post_init__(self):
+        """Post initialization."""
+        # general settings
+        self.decimation = 2
+        self.episode_length_s = 12.0
+        self.viewer.eye = (3.5, 3.5, 3.5)
+        # simulation settings
+        self.sim.dt = 1.0 / 60.0
+
+@configclass
+class MobileReachEnvCfg(ManagerBasedRLEnvCfg):
+    """Configuration for the reach end-effector pose tracking environment."""
+
+    # Scene settings
+    scene: HSRBReachSceneCfg = HSRBReachSceneCfg(num_envs=4096, env_spacing=2.5)
     # Basic settings
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
