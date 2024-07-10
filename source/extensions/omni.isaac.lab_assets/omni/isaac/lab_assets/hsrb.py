@@ -67,7 +67,7 @@ HSRB_CFG = ArticulationCfg(
                 "wrist_flex_joint": 1.5,
                 "wrist_roll_joint": 1.5,
             },
-            effort_limit=100.0, # 10.0 
+            effort_limit=1000.0, # 10.0 
             stiffness={
                 "arm_lift_joint": 900.0,
                 "arm_flex_joint": 2000.0,
