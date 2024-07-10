@@ -20,8 +20,10 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+from omni.isaac.lab.sensors import FrameTransformerCfg
 
-import omni.isaac.lab_tasks.manager_based.manipulation.reach.mdp as mdp
+# import omni.isaac.lab_tasks.manager_based.manipulation.reach.mdp as mdp
+from . import mdp
 
 ##
 # Scene definition
@@ -76,6 +78,8 @@ class HSRBReachSceneCfg(InteractiveSceneCfg):
         spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
     )
 
+    # ee frame
+    ee_frame: FrameTransformerCfg = MISSING
 
 
 ##
@@ -90,12 +94,12 @@ class CommandsCfg:
     ee_pose = mdp.UniformPoseCommandCfg(
         asset_name="robot",
         body_name=MISSING,
-        resampling_time_range=(4.0, 4.0),
+        resampling_time_range=(10.0, 20.0),
         debug_vis=True,
         ranges=mdp.UniformPoseCommandCfg.Ranges(
             pos_x=(0.35, 0.65),
             pos_y=(-0.2, 0.2),
-            pos_z=(0.15, 0.5),
+            pos_z=(0.2, 1.4),
             roll=(0.0, 0.0),
             pitch=MISSING,  # depends on end-effector axis
             yaw=(-3.14, 3.14),
@@ -123,7 +127,8 @@ class ObservationsCfg:
         # observation terms (order preserved)
         joint_pos = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
-        pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
+        ee_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
+        current_ee_pos = ObsTerm(func=mdp.ee_pos, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
 
         # TODO: Add global pose (odom) to the observation space
