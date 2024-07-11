@@ -18,7 +18,7 @@ import omni.isaac.lab.sim as sim_utils
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets.hsrb import HSRB_CFG  # isort:skip
+from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG  # isort:skip
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
 
@@ -61,8 +61,8 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         )
         # override command generator body
         # end-effector is along z-direction
-        self.commands.ee_pose.body_name = "base_footprint"
-        self.commands.ee_pose.ranges.pitch = (math.pi, math.pi)
+        # self.commands.ee_pose.body_name = "base_footprint"
+        # self.commands.ee_pose.ranges.pitch = (math.pi, math.pi)
 
         # Listen for the required transforms (end-effector)
         self.scene.ee_frame = FrameTransformerCfg(
@@ -77,10 +77,33 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
                         pos=(0.0, 0.0, 0.065),
                     ),
                 ),
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/wrist_roll_link",
+                    name="wrist",
+                    offset=OffsetCfg(
+                        pos=(0.0, 0.0, 0.0),
+                    ),
+                ),
             ],
         )
 
+        # add lidar
+        self.scene.lidar = HSRB_LIDAR_CFG.copy()
 
+        self.commands.ee_pose = mdp.UniformPoseCommandCfg(
+            asset_name="robot",
+            body_name="base_footprint",
+            resampling_time_range=(50.0, 100.0),
+            debug_vis=True,
+            ranges=mdp.UniformPoseCommandCfg.Ranges(
+                pos_x=(-3.5, 3.5),
+                pos_y=(-3.5, 3.5),
+                pos_z=(0.2, 0.5),
+                roll=(0.0, 0.0),
+                pitch=(-math.pi/2, -math.pi/2),  # depends on end-effector axis
+                yaw=(-math.pi, -math.pi),
+            ),
+        )
 
 
 @configclass

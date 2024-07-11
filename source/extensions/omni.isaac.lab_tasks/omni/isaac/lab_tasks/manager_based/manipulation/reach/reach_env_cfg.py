@@ -18,9 +18,14 @@ from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.managers import TerminationTermCfg as DoneTerm
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
-from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
+from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from omni.isaac.lab.sensors import FrameTransformerCfg
+from omni.isaac.lab.sensors import FrameTransformerCfg, RayCasterCfg
+from omni.isaac.lab.terrains import TerrainImporterCfg
+from omni.isaac.lab.terrains.config.rough import ROUGH_TERRAINS_CFG
+from omni.isaac.lab.terrains.config.hsrb_reach import HSRB_REACH_TERRAINS_CFG  # isort: skip
+
+
 
 # import omni.isaac.lab_tasks.manager_based.manipulation.reach.mdp as mdp
 from . import mdp
@@ -63,23 +68,50 @@ class HSRBReachSceneCfg(InteractiveSceneCfg):
     """Configuration for the scene with a hsrb."""
 
     # world
-    ground = AssetBaseCfg(
+    # ground = AssetBaseCfg(
+    #     prim_path="/World/ground",
+    #     spawn=sim_utils.GroundPlaneCfg(),
+    #     init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
+    # )
+
+    # ground terrain
+    terrain = TerrainImporterCfg(
         prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(),
-        init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
+        terrain_type="generator",
+        terrain_generator=HSRB_REACH_TERRAINS_CFG,
+        max_init_terrain_level=5,
+        collision_group=-1,
+        physics_material=sim_utils.RigidBodyMaterialCfg(
+            friction_combine_mode="multiply",
+            restitution_combine_mode="multiply",
+            static_friction=1.0,
+            dynamic_friction=1.0,
+        ),
+        visual_material=sim_utils.MdlFileCfg(
+            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+            project_uvw=True,
+            texture_scale=(0.25, 0.25),
+        ),
+        debug_vis=False,
     )
 
     # robots
     robot: ArticulationCfg = MISSING
 
     # lights
-    light = AssetBaseCfg(
-        prim_path="/World/light",
-        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
+    sky_light = AssetBaseCfg(
+        prim_path="/World/skyLight",
+        spawn=sim_utils.DomeLightCfg(
+            intensity=750.0,
+            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
+        ),
     )
 
     # ee frame
     ee_frame: FrameTransformerCfg = MISSING
+
+    lidar: RayCasterCfg | None = None
+    depth_camera: RayCasterCfg | None = None
 
 
 ##
@@ -154,6 +186,22 @@ class EventCfg:
         },
     )
 
+    reset_base = EventTerm(
+        func=mdp.reset_root_state_uniform,
+        mode="reset",
+        params={
+            "pose_range": {"x": (-0.2, 0.2), "y": (-0.2, 0.2), "z": (0.0, 0.0), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (-0.1, 0.1),
+                "y": (-0.1, 0.1),
+                "z": (-0.1, 0.1),
+                "roll": (-0.1, 0.1),
+                "pitch": (-0.1, 0.1),
+                "yaw": (-0.1, 0.1),
+            },
+        },
+    )
+
 
 @configclass
 class RewardsCfg:
@@ -203,6 +251,8 @@ class CurriculumCfg:
     joint_vel = CurrTerm(
         func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
     )
+
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
 
 ##
@@ -259,3 +309,12 @@ class MobileReachEnvCfg(ManagerBasedRLEnvCfg):
         self.viewer.eye = (3.5, 3.5, 3.5)
         # simulation settings
         self.sim.dt = 1.0 / 60.0
+
+        # check if terrain levels curriculum is enabled - if so, enable curriculum for terrain generator
+        # this generates terrains with increasing difficulty and is useful for training
+        if getattr(self.curriculum, "terrain_levels", None) is not None:
+            if self.scene.terrain.terrain_generator is not None:
+                self.scene.terrain.terrain_generator.curriculum = True
+        else:
+            if self.scene.terrain.terrain_generator is not None:
+                self.scene.terrain.terrain_generator.curriculum = False
