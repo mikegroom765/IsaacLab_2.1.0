@@ -17,6 +17,8 @@ import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.actuators import ImplicitActuatorCfg
 from omni.isaac.lab.assets.articulation import ArticulationCfg
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
+from omni.isaac.lab.sensors import RayCasterCfg, patterns
+from .velodyne import HOKUYO_UST_20LX_RAYCASTER_CFG
 
 HSRB_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
@@ -120,3 +122,20 @@ The following control configuration is used:
 * Hand: currently position control - TODO: binary close/open control
 
 """
+
+HSRB_LIDAR_CFG = HOKUYO_UST_20LX_RAYCASTER_CFG.replace(
+    offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0, 1.0)),
+    prim_path="{ENV_REGEX_NS}/Robot/base_range_sensor_link",
+    mesh_prim_paths=["/World/ground"],
+)
+"""Configuration of the HSRB's Hokuyo UST-20LX lidar sensor."""
+
+HSRB_DEPTH_CAMERA_CFG = RayCasterCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
+        attach_yaw_only=True,
+        pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
+        debug_vis=False,
+        mesh_prim_paths=["/World/ground"],
+)
+"""Configuration of the HSRB's depth camera sensor."""
