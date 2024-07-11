@@ -808,7 +808,8 @@ def repeated_objects_terrain(
     # initialize list of meshes
     meshes_list = list()
     # compute quantities
-    origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.5 * height))
+    # origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.5 * height))
+    origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.0))
     platform_corners = np.asarray([
         [origin[0] - cfg.platform_width / 2, origin[1] - cfg.platform_width / 2],
         [origin[0] + cfg.platform_width / 2, origin[1] + cfg.platform_width / 2],
@@ -818,8 +819,8 @@ def repeated_objects_terrain(
     # sample center for objects
     while True:
         object_centers = np.zeros((num_objects, 3))
-        object_centers[:, 0] = np.random.uniform(0, cfg.size[0], num_objects)
-        object_centers[:, 1] = np.random.uniform(0, cfg.size[1], num_objects)
+        object_centers[:, 0] = np.random.uniform(0.5, cfg.size[0]-0.5, num_objects)
+        object_centers[:, 1] = np.random.uniform(0.5, cfg.size[1]-0.5, num_objects)
         # filter out the centers that are on the platform
         is_within_platform_x = np.logical_and(
             object_centers[:, 0] >= platform_corners[0, 0], object_centers[:, 0] <= platform_corners[1, 0]
@@ -844,9 +845,9 @@ def repeated_objects_terrain(
     ground_plane = make_plane(cfg.size, height=0.0, center_zero=False)
     meshes_list.append(ground_plane)
     # generate a platform in the middle
-    dim = (cfg.platform_width, cfg.platform_width, 0.5 * height)
-    pos = (0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.25 * height)
-    platform = trimesh.creation.box(dim, trimesh.transformations.translation_matrix(pos))
-    meshes_list.append(platform)
+    # dim = (cfg.platform_width, cfg.platform_width, 0.5 * height)
+    # pos = (0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.25 * height)
+    # platform = trimesh.creation.box(dim, trimesh.transformations.translation_matrix(pos))
+    # meshes_list.append(platform)
 
     return meshes_list, origin
