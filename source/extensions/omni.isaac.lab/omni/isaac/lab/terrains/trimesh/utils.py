@@ -161,7 +161,7 @@ def make_cylinder(
     # -- apply the rotation
     transform[0:3, 0:3] = tf.Rotation.from_euler("zyx", euler_zyx).as_matrix()
     # create the cylinder
-    return trimesh.creation.cylinder(radius, height, sections=np.random.randint(4, 6), transform=transform)
+    return trimesh.creation.cylinder(radius, height, sections=np.random.randint(4, 12), transform=transform)
 
 
 def make_cone(
