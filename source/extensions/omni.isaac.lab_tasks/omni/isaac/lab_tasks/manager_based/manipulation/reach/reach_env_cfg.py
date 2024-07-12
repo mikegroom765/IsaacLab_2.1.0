@@ -20,7 +20,7 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from omni.isaac.lab.sensors import FrameTransformerCfg, RayCasterCfg
+from omni.isaac.lab.sensors import FrameTransformerCfg, RayCasterCfg, TiledCameraCfg
 from omni.isaac.lab.terrains import TerrainImporterCfg
 from omni.isaac.lab.terrains.config.rough import ROUGH_TERRAINS_CFG
 from omni.isaac.lab.terrains.config.hsrb_reach import HSRB_REACH_TERRAINS_CFG  # isort: skip
@@ -105,6 +105,7 @@ class HSRBReachSceneCfg(InteractiveSceneCfg):
 
     lidar: RayCasterCfg | None = None
     depth_camera: RayCasterCfg | None = None
+    depth_camera_tiled: TiledCameraCfg | None = None
 
 
 ##

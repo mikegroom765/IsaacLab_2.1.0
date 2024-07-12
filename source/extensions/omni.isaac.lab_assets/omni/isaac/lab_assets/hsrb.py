@@ -17,7 +17,7 @@ import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.actuators import ImplicitActuatorCfg
 from omni.isaac.lab.assets.articulation import ArticulationCfg
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
-from omni.isaac.lab.sensors import RayCasterCfg, patterns
+from omni.isaac.lab.sensors import RayCasterCfg, patterns, TiledCameraCfg
 from .velodyne import HOKUYO_UST_20LX_RAYCASTER_CFG
 
 HSRB_CFG = ArticulationCfg(
@@ -140,3 +140,16 @@ HSRB_DEPTH_CAMERA_CFG = RayCasterCfg(
         max_distance=5.0,
 )
 """Configuration of the HSRB's depth camera sensor."""
+
+HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
+    prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link/tiled_camera",
+    offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 1.0, 0.0), convention="ros"),
+    data_types=["depth"],
+    spawn=sim_utils.PinholeCameraCfg(
+        focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+    ),
+    width=80,
+    height=80,
+)
+
+"""Configuration of the HSRB's depth camera sensor, implemented as a tiled camera."""

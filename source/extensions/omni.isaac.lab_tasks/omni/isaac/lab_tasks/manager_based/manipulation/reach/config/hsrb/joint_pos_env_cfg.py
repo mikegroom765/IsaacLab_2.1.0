@@ -18,7 +18,7 @@ import omni.isaac.lab.sim as sim_utils
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG  # isort:skip
+from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG, HSRB_TILED_DEPTH_CAMERA_CFG  # isort:skip 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
 
@@ -84,7 +84,8 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.scene.lidar = HSRB_LIDAR_CFG.copy()
 
         # add depth camera
-        self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
+        # self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
+        self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
 
         self.commands.ee_pose = mdp.UniformPoseCommandCfg(
             asset_name="robot",
