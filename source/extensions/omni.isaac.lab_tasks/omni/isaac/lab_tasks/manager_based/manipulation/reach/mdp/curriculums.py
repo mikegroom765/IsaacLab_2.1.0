@@ -19,6 +19,9 @@ from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.terrains import TerrainImporter
 
+from omni.isaac.lab.utils.math import quat_error_magnitude
+import math
+
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
@@ -42,18 +45,34 @@ def terrain_levels_vel(
     asset: Articulation = env.scene[asset_cfg.name]
     terrain: TerrainImporter = env.scene.terrain
     command = env.command_manager.get_command("ee_pose")
-    # compute the distance the robot walked
-    # distance = torch.norm(asset.data.root_pos_w[env_ids, :2] - env.scene.env_origins[env_ids, :2], dim=1)
-
+    
     # compute the distance between the robot and the target ee_pose
-    # print(f"command: {command}")
-    # print(f"asset.data.root_pos_w: {asset.data.root_pos_w}")
-    distance = torch.norm(command[env_ids, :2] - asset.data.root_pos_w[env_ids, :2], dim=1)
+    command = env.command_manager.get_command("ee_pose")
 
-    # robots that walked far enough progress to harder terrains
-    move_up = distance > terrain.cfg.terrain_generator.size[0] / 2
-    # robots that walked less than half of their required distance go to simpler terrains
-    move_down = distance < torch.norm(command[env_ids, :2], dim=1) * env.max_episode_length_s * 0.5
+    command_position = command[env_ids, :3]
+    command_orientation = command[env_ids, 3:7]
+
+    data = env.scene["ee_frame"].data
+
+    ee_pos = env.scene["ee_frame"].data.target_pos_source[..., 0, :]
+    ee_quat = env.scene["ee_frame"].data.target_quat_source[..., 0, :]
+
+    position_error = torch.norm(ee_pos[env_ids, :] - command_position, dim=1)
+
+    orientation_error = []
+    # calculate the orientation error for each environment
+    for index, value in enumerate(env_ids):
+        
+        error = quat_error_magnitude(ee_quat[index, :], command_orientation[index, :])
+        # append the error to the list
+        orientation_error.append(error)
+
+    orientation_error = torch.tensor(orientation_error).to("cuda")
+
+    # robots that get ee close enough progress to harder terrains
+    move_up = (position_error < 0.05) & (orientation_error < 0.1)
+    # robots that don't get close enough go to simpler terrains
+    move_down = (position_error > 1.0) | (orientation_error > math.pi / 2)
     move_down *= ~move_up
     # update terrain levels
     terrain.update_env_origins(env_ids, move_up, move_down)
