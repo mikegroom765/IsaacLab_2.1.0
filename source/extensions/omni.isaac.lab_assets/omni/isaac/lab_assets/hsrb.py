@@ -132,10 +132,11 @@ HSRB_LIDAR_CFG = HOKUYO_UST_20LX_RAYCASTER_CFG.replace(
 
 HSRB_DEPTH_CAMERA_CFG = RayCasterCfg(
         prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
-        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 20.0)),
-        attach_yaw_only=True,
+        offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 1.0, 0.0)),
+        attach_yaw_only=False,
         pattern_cfg=patterns.GridPatternCfg(resolution=0.1, size=[1.6, 1.0]),
-        debug_vis=False,
+        debug_vis=True,
         mesh_prim_paths=["/World/ground"],
+        max_distance=5.0,
 )
 """Configuration of the HSRB's depth camera sensor."""

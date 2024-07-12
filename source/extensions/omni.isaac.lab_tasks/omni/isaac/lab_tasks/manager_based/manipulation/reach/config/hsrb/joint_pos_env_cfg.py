@@ -18,7 +18,7 @@ import omni.isaac.lab.sim as sim_utils
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG  # isort:skip
+from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG  # isort:skip
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
 
@@ -77,18 +77,14 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
                         pos=(0.0, 0.0, 0.065),
                     ),
                 ),
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/wrist_roll_link",
-                    name="wrist",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.0, 0.0),
-                    ),
-                ),
             ],
         )
 
         # add lidar
         self.scene.lidar = HSRB_LIDAR_CFG.copy()
+
+        # add depth camera
+        self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
 
         self.commands.ee_pose = mdp.UniformPoseCommandCfg(
             asset_name="robot",

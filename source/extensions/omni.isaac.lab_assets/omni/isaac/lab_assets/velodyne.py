@@ -29,7 +29,7 @@ Reference: https://velodynelidar.com/wp-content/uploads/2019/12/63-9229_Rev-K_Pu
 HOKUYO_UST_20LX_RAYCASTER_CFG = RayCasterCfg(
     attach_yaw_only=False,
     pattern_cfg=patterns.LidarPatternCfg(
-        channels=1, vertical_fov_range=(0.0, 0.0), horizontal_fov_range=(-135.0, 135.0), horizontal_res=0.25
+        channels=1, vertical_fov_range=(0.0, 0.0), horizontal_fov_range=(45, 315), horizontal_res=0.25
     ),
     debug_vis=True,
     max_distance=60,

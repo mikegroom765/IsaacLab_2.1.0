@@ -67,13 +67,6 @@ class ReachSceneCfg(InteractiveSceneCfg):
 class HSRBReachSceneCfg(InteractiveSceneCfg):
     """Configuration for the scene with a hsrb."""
 
-    # world
-    # ground = AssetBaseCfg(
-    #     prim_path="/World/ground",
-    #     spawn=sim_utils.GroundPlaneCfg(),
-    #     init_state=AssetBaseCfg.InitialStateCfg(pos=(0.0, 0.0, 0.0)),
-    # )
-
     # ground terrain
     terrain = TerrainImporterCfg(
         prim_path="/World/ground",
