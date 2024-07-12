@@ -96,11 +96,11 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
             resampling_time_range=(50.0, 100.0),
             debug_vis=True,
             ranges=mdp.UniformPoseCommandCfg.Ranges(
-                pos_x=(-3.5, 3.5),
+                pos_x=(-3.5,3.5),
                 pos_y=(-3.5, 3.5),
-                pos_z=(0.2, 0.5),
-                roll=(0.0, 0.0),
-                pitch=(-math.pi/2, -math.pi/2),  # depends on end-effector axis
+                pos_z=(0.2, 1.4),
+                roll=(-math.pi, math.pi),
+                pitch=(math.pi/2, math.pi/2),  # depends on end-effector axis
                 yaw=(-math.pi, -math.pi),
             ),
         )

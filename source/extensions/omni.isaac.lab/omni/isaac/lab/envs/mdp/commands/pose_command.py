@@ -15,7 +15,7 @@ from omni.isaac.lab.assets import Articulation
 from omni.isaac.lab.managers import CommandTerm
 from omni.isaac.lab.markers import VisualizationMarkers
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG
-from omni.isaac.lab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique
+from omni.isaac.lab.utils.math import combine_frame_transforms, compute_pose_error, quat_from_euler_xyz, quat_unique, quat_from_matrix, matrix_from_euler
 
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedEnv
@@ -108,21 +108,66 @@ class UniformPoseCommand(CommandTerm):
         self.metrics["position_error"] = torch.norm(pos_error, dim=-1)
         self.metrics["orientation_error"] = torch.norm(rot_error, dim=-1)
 
+    # def _resample_command(self, env_ids: Sequence[int]):
+    #     # sample new pose targets
+    #     # -- position
+    #     r = torch.empty(len(env_ids), device=self.device)
+    #     self.pose_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.pos_x)
+    #     self.pose_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.pos_y)
+    #     self.pose_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.pos_z)
+    #     # -- orientation
+    #     euler_angles = torch.zeros_like(self.pose_command_b[env_ids, :3])
+    #     euler_angles[:, 0].uniform_(*self.cfg.ranges.roll)
+    #     euler_angles[:, 1].uniform_(*self.cfg.ranges.pitch)
+    #     euler_angles[:, 2].uniform_(*self.cfg.ranges.yaw)
+    #     quat = quat_from_euler_xyz(euler_angles[:, 0], euler_angles[:, 1], euler_angles[:, 2])
+    #     # make sure the quaternion has real part as positive
+    #     self.pose_command_b[env_ids, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
+
     def _resample_command(self, env_ids: Sequence[int]):
+        """_resample_command implemented by applying an orientation given by the average
+        of the specified ranges in rpy, then sampling about that point using the range
+        
+        This is as apposed to the original implementation which samples uniformly from the range
+        directly in rpy without applying any average orientation first
+        """
+
         # sample new pose targets
         # -- position
         r = torch.empty(len(env_ids), device=self.device)
         self.pose_command_b[env_ids, 0] = r.uniform_(*self.cfg.ranges.pos_x)
         self.pose_command_b[env_ids, 1] = r.uniform_(*self.cfg.ranges.pos_y)
         self.pose_command_b[env_ids, 2] = r.uniform_(*self.cfg.ranges.pos_z)
+
         # -- orientation
         euler_angles = torch.zeros_like(self.pose_command_b[env_ids, :3])
+
+        # average of the ranges
+        avg_roll = sum(self.cfg.ranges.roll) / 2
+        avg_pitch = sum(self.cfg.ranges.pitch) / 2
+        avg_yaw = sum(self.cfg.ranges.yaw) / 2
+
+        # perturb about the average
         euler_angles[:, 0].uniform_(*self.cfg.ranges.roll)
         euler_angles[:, 1].uniform_(*self.cfg.ranges.pitch)
         euler_angles[:, 2].uniform_(*self.cfg.ranges.yaw)
-        quat = quat_from_euler_xyz(euler_angles[:, 0], euler_angles[:, 1], euler_angles[:, 2])
-        # make sure the quaternion has real part as positive
-        self.pose_command_b[env_ids, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
+
+        # subtract the average
+        euler_angles[:, 0] -= avg_roll
+        euler_angles[:, 1] -= avg_pitch
+        euler_angles[:, 2] -= avg_yaw
+
+        avg_rot_mat = matrix_from_euler(torch.Tensor([avg_roll, avg_pitch, avg_yaw]).to("cuda"), "XYZ")
+
+        for i in range(len(env_ids)):
+            perturb_tensor = torch.Tensor([euler_angles[i, 0], euler_angles[i, 1], euler_angles[i, 2]]).to("cuda")
+            perturb_rot_mat = matrix_from_euler(perturb_tensor, "XYZ")
+
+            sampled_rot_mat = torch.matmul(avg_rot_mat, perturb_rot_mat)
+
+            quat = quat_from_matrix(sampled_rot_mat)
+            # make sure the quaternion has real part as positive
+            self.pose_command_b[i, 3:] = quat_unique(quat) if self.cfg.make_quat_unique else quat
 
     def _update_command(self):
         pass
