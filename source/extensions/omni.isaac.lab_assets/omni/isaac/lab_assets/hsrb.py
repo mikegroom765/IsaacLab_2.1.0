@@ -143,13 +143,13 @@ HSRB_DEPTH_CAMERA_CFG = RayCasterCfg(
 
 HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
     prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link/tiled_camera",
-    offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 1.0, 0.0), convention="ros"),
+    offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0), convention="ros"),
     data_types=["depth"],
     spawn=sim_utils.PinholeCameraCfg(
-        focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+        focal_length=24.0, focus_distance=400.0, horizontal_aperture=58, clipping_range=(0.1, 10.0)
     ),
-    width=80,
-    height=80,
+    width=640,
+    height=480,
 )
 
 """Configuration of the HSRB's depth camera sensor, implemented as a tiled camera."""
