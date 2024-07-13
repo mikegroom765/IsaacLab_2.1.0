@@ -102,6 +102,7 @@ class HSRBReachSceneCfg(InteractiveSceneCfg):
 
     # ee frame
     ee_frame: FrameTransformerCfg = MISSING
+    depth_camera_frame: FrameTransformerCfg = MISSING
 
     lidar: RayCasterCfg | None = None
     depth_camera: RayCasterCfg | None = None
@@ -226,6 +227,12 @@ class RewardsCfg:
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
 
+    # is goal in camera view
+    is_goal_in_camera_view = RewTerm(
+        func=mdp.is_goal_in_camera_view,
+        weight=0.1,
+        params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
+    )
 
 @configclass
 class TerminationsCfg:

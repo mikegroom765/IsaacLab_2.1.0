@@ -14,6 +14,7 @@ from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
 from omni.isaac.lab.sensors import FrameTransformerCfg
 from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 import omni.isaac.lab.sim as sim_utils
+from omni.isaac.lab.sensors import TiledCameraCfg
 
 ##
 # Pre-defined configs
@@ -75,6 +76,21 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
                     name="ee_tcp",
                     offset=OffsetCfg(
                         pos=(0.0, 0.0, 0.065),
+                    ),
+                ),
+            ],
+        )
+
+        self.scene.depth_camera_frame = FrameTransformerCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_footprint",
+            debug_vis=False,
+            visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/DepthCameraFrameTransformer"),
+            target_frames=[
+                FrameTransformerCfg.FrameCfg(
+                    prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
+                    name="depth_camera",
+                    offset=OffsetCfg(
+                        pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0),
                     ),
                 ),
             ],
