@@ -69,6 +69,22 @@ def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_c
     return quat_error_magnitude(curr_quat_w, des_quat_w)
 
 
+def contact_penalty(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalise when the contact force on the sensor exceeds the force threshold.
+    
+    The function computes the net contact forces on the sensor and penalizes when the maximum contact force exceeds the
+    threshold. The penalty is -1.0 if the contact force exceeds the threshold and 0.0 otherwise.
+    """
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # check if any contact force exceeds the threshold
+    bool_tensor = torch.any(torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1)
+    rewards = bool_tensor.float() * -1.0
+    return rewards
+
+
+
 def is_goal_in_camera_view(env: ManagerBasedRLEnv, camera_name: str, goal_name: str) -> torch.Tensor:
     """Reward if the goal object is in the camera's view.
 

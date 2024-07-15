@@ -11,7 +11,7 @@ import omni.isaac.lab_tasks.manager_based.manipulation.reach.mdp as mdp
 from omni.isaac.lab_tasks.manager_based.manipulation.reach.reach_env_cfg import ReachEnvCfg, MobileReachEnvCfg
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
-from omni.isaac.lab.sensors import FrameTransformerCfg
+from omni.isaac.lab.sensors import FrameTransformerCfg, ContactSensorCfg, patterns
 from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.sensors import TiledCameraCfg
@@ -98,6 +98,10 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
 
         # add lidar
         self.scene.lidar = HSRB_LIDAR_CFG.copy()
+        # reduce the horizontal resolution to 1.0
+        self.scene.lidar.replace(pattern_cfg=patterns.LidarPatternCfg(
+            channels=1, vertical_fov_range=(0.0, 0.0), horizontal_fov_range=(45, 315), horizontal_res=1.0)
+        )
 
         # add depth camera
         # self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
@@ -116,6 +120,91 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
                 pitch=(math.pi/2, math.pi/2),  # depends on end-effector axis
                 yaw=(-math.pi, -math.pi),
             ),
+        )
+
+        #### Contact sensors ####
+
+        robot_base_prim_paths = [
+            "{ENV_REGEX_NS}/Robot/base_link",
+            "{ENV_REGEX_NS}/Robot/base_b_bumper_link",
+            "{ENV_REGEX_NS}/Robot/base_f_bumper_link",
+        ]
+
+        robot_arm_prim_paths = [
+            "{ENV_REGEX_NS}/Robot/arm_lift_link",
+            "{ENV_REGEX_NS}/Robot/arm_flex_link",
+            "{ENV_REGEX_NS}/Robot/arm_roll_link",
+        ]
+
+        robot_wrist_prim_paths = [
+            "{ENV_REGEX_NS}/Robot/wrist_flex_link",
+            "{ENV_REGEX_NS}/Robot/wrist_roll_link",
+        ]
+
+        robot_gripper_prim_paths = [
+            "{ENV_REGEX_NS}/Robot/hand_palm_link",
+            "{ENV_REGEX_NS}/Robot/hand_l_spring_proximal_link",
+            "{ENV_REGEX_NS}/Robot/hand_r_spring_proximal_link",
+            "{ENV_REGEX_NS}/Robot/hand_l_distal_link",
+            "{ENV_REGEX_NS}/Robot/hand_r_distal_link",
+            "{ENV_REGEX_NS}/Robot/hand_l_finger_vacuum_frame",
+        ]
+
+        robot_head_prim_paths = [
+            "{ENV_REGEX_NS}/Robot/head_pan_link",
+            "{ENV_REGEX_NS}/Robot/head_tilt_link",
+            "{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
+        ]
+
+
+        contact_history_length = 1
+        #### Base contact forces ####
+        self.scene.base_b_bumper_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_b_bumper_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=["/World/ground/terrain/mesh"], track_air_time=True, # /World/ground/terrain/mesh
+        )
+        self.scene.base_f_bumper_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/base_f_bumper_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=["/World/ground/terrain/mesh"], track_air_time=True,
+        )
+
+        #### Arm contact forces ####
+        # arm_lift_contact_force_prim_paths = robot_base_prim_paths + robot_gripper_prim_paths + robot_head_prim_paths + ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/torso_lift_link", "{ENV_REGEX_NS}/Robot/wrist_roll_link"]
+        # self.scene.arm_lift_contact_force = ContactSensorCfg(
+        #     prim_path="{ENV_REGEX_NS}/Robot/arm_lift_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=arm_contact_force_prim_paths # ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/base.*/collisions/mesh.*", "{ENV_REGEX_NS}/Robot/wrist_roll_link", "{ENV_REGEX_NS}/Robot/hand.*", "{ENV_REGEX_NS}/Robot/torso_lift_link", "{ENV_REGEX_NS}/Robot/head.*"], # {ENV_REGEX_NS}/Robot/base_f_bumper_link
+        # )
+        arm_flex_contact_force_prim_paths = robot_base_prim_paths + robot_gripper_prim_paths + robot_head_prim_paths + ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/torso_lift_link", "{ENV_REGEX_NS}/Robot/wrist_roll_link"]
+        self.scene.arm_flex_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/arm_flex_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=arm_flex_contact_force_prim_paths # ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/base.*/collisions/mesh.*", "{ENV_REGEX_NS}/Robot/wrist_roll_link", "{ENV_REGEX_NS}/Robot/hand.*", "{ENV_REGEX_NS}/Robot/torso_lift_link", "{ENV_REGEX_NS}/Robot/head.*"], # {ENV_REGEX_NS}/Robot/base_f_bumper_link
+        )
+        arm_roll_contact_force_prim_paths = robot_base_prim_paths + robot_gripper_prim_paths + robot_head_prim_paths + ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/torso_lift_link", "{ENV_REGEX_NS}/Robot/wrist_roll_link"]
+        self.scene.arm_roll_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/arm_roll_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=arm_roll_contact_force_prim_paths # ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/base.*/collisions/mesh.*", "{ENV_REGEX_NS}/Robot/wrist_roll_link", "{ENV_REGEX_NS}/Robot/hand.*", "{ENV_REGEX_NS}/Robot/torso_lift_link", "{ENV_REGEX_NS}/Robot/head.*"], # {ENV_REGEX_NS}/Robot/base_f_bumper_link
+        )
+
+        #### Wrist contact forces ####
+        wrist_roll_contact_force_prim_paths = robot_base_prim_paths + robot_head_prim_paths + ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/torso_lift_link"]
+        self.scene.wrist_roll_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/wrist_roll_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=wrist_roll_contact_force_prim_paths
+        )
+
+        #### (Self) Gripper contact forces ####
+        self_gripper_contact_force_prim_paths = robot_base_prim_paths + robot_arm_prim_paths + robot_head_prim_paths + ["/World/ground/terrain/mesh", "{ENV_REGEX_NS}/Robot/torso_lift_link"]
+        self.scene.self_gripper_hand_palm_link_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/hand_palm_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=self_gripper_contact_force_prim_paths,
+        )
+        self.scene.self_gripper_hand_l_spring_proximal_link_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/hand_l_spring_proximal_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=self_gripper_contact_force_prim_paths,
+        )
+        self.scene.self_gripper_hand_r_spring_proximal_link_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/hand_r_spring_proximal_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=self_gripper_contact_force_prim_paths,
+        )
+        self.scene.self_gripper_hand_l_distal_link_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/hand_l_distal_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=self_gripper_contact_force_prim_paths,
+        )
+        self.scene.self_gripper_hand_r_distal_link_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/hand_r_distal_link", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=self_gripper_contact_force_prim_paths,
+        )
+        self.scene.self_gripper_hand_l_finger_vacuum_frame_contact_force = ContactSensorCfg(
+            prim_path="{ENV_REGEX_NS}/Robot/hand_l_finger_vacuum_frame", update_period=0.0, history_length=contact_history_length, debug_vis=True, filter_prim_paths_expr=self_gripper_contact_force_prim_paths,
         )
 
 

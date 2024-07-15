@@ -20,7 +20,7 @@ from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.utils import configclass
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from omni.isaac.lab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-from omni.isaac.lab.sensors import FrameTransformerCfg, RayCasterCfg, TiledCameraCfg
+from omni.isaac.lab.sensors import FrameTransformerCfg, RayCasterCfg, TiledCameraCfg, ContactSensorCfg
 from omni.isaac.lab.terrains import TerrainImporterCfg
 from omni.isaac.lab.terrains.config.rough import ROUGH_TERRAINS_CFG
 from omni.isaac.lab.terrains.config.hsrb_reach import HSRB_REACH_TERRAINS_CFG  # isort: skip
@@ -100,14 +100,28 @@ class HSRBReachSceneCfg(InteractiveSceneCfg):
         ),
     )
 
-    # ee frame
+    # frame transformers
     ee_frame: FrameTransformerCfg = MISSING
     depth_camera_frame: FrameTransformerCfg = MISSING
 
+    # sensors
     lidar: RayCasterCfg | None = None
     depth_camera: RayCasterCfg | None = None
     depth_camera_tiled: TiledCameraCfg | None = None
 
+    # contact sensors
+    base_b_bumper_contact_force: ContactSensorCfg | None = None
+    base_f_bumper_contact_force: ContactSensorCfg | None = None
+    arm_flex_contact_force: ContactSensorCfg | None = None
+    arm_roll_contact_force: ContactSensorCfg | None = None
+    wrist_roll_contact_force: ContactSensorCfg | None = None
+    self_gripper_hand_palm_link_contact_force: ContactSensorCfg | None = None
+    self_gripper_hand_l_spring_proximal_link_contact_force: ContactSensorCfg | None = None
+    self_gripper_hand_r_spring_proximal_link_contact_force: ContactSensorCfg | None = None
+    self_gripper_hand_l_distal_link_contact_force: ContactSensorCfg | None = None
+    self_gripper_hand_r_distal_link_contact_force: ContactSensorCfg | None = None
+    self_gripper_hand_l_finger_vacuum_frame_contact_force: ContactSensorCfg | None = None
+    gripper_contact_force: ContactSensorCfg | None = None
 
 ##
 # MDP settings
@@ -232,6 +246,67 @@ class RewardsCfg:
         func=mdp.is_goal_in_camera_view,
         weight=0.1,
         params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
+    )
+
+    #### Contact Force Penalties ####
+    #### Base ####
+    contact_penalty_base_b_bumper = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"])},
+    )
+    contact_penalty_base_f_bumper = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"])},
+    )
+    #### Arm ####
+    contact_penalty_arm_flex = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_flex_contact_force")},
+    )
+    contact_penalty_arm_roll = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_roll_contact_force")},
+    )
+    #### Wrist ####
+    contact_penalty_wrist_roll = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("wrist_roll_contact_force")},
+    )
+    #### (Self-collisions) Gripper ####
+    contact_penalty_self_gripper_hand_palm_link = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_palm_link_contact_force")},
+    )
+    contact_penalty_self_gripper_hand_l_spring_proximal_link = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_spring_proximal_link_contact_force")},
+    )
+    contact_penalty_self_gripper_hand_r_spring_proximal_link = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_spring_proximal_link_contact_force")},
+    )
+    contact_penalty_self_gripper_hand_l_distal_link = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_distal_link_contact_force")},
+    )
+    contact_penalty_self_gripper_hand_r_distal_link = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_distal_link_contact_force")},
+    )
+    contact_penalty_self_gripper_hand_l_finger_vacuum_frame = RewTerm(
+        func=mdp.contact_penalty,
+        weight=1.0,
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_finger_vacuum_frame_contact_force")},
     )
 
 @configclass
