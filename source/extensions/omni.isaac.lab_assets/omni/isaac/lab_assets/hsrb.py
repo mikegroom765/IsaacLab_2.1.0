@@ -120,7 +120,7 @@ The following control configuration is used:
 
 * Base: velocity control with damping
 * Arm: position control with damping (contains default position offsets)
-* Hand: currently position control - TODO: binary close/open control
+* Hand: binary close/open control
 
 """
 
@@ -154,3 +154,5 @@ HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
 )
 
 """Configuration of the HSRB's depth camera sensor, implemented as a tiled camera."""
+
+HSRB_DEFAULT_CAMERA_INTRINSICS = torch.tensor([0., 0., 0.,], [0., 0., 0.,], [0., 0., 0.,]).to("cuda")

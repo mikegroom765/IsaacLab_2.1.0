@@ -172,7 +172,7 @@ class ObservationsCfg:
         current_ee_pos = ObsTerm(func=mdp.ee_pos, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
 
-        # TODO: Add global pose (odom) to the observation space
+        # TODO: Add global pose (odom) to the observation space - I'm pretty sure this is joint_pos[0:2] since the robot uses dummy joints?
 
         lidar_scan = ObsTerm(
             func=mdp.lidar_2d_scan,
@@ -282,12 +282,19 @@ class RewardsCfg:
                 "orientation_threshold": MISSING},
     )
 
-    # is goal in camera view
+    # is goal in camera view - use when using tiled camera
     is_goal_in_camera_view = RewTerm(
         func=mdp.is_goal_in_camera_view,
         weight=0.1,
         params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
     )
+
+    # # is goal in camera view - use when not using tiled camera
+    # is_goal_in_camera_view = RewTerm(
+    #     func=mdp.is_goal_in_camera_view_frame,
+    #     weight=0.1,
+    #     params={"camera_name": "depth_camera", "goal_name": "ee_pose", "camera_intrinsics": MISSING}, 
+    # )
 
     #### Contact Force Penalties ####
     #### Base ####

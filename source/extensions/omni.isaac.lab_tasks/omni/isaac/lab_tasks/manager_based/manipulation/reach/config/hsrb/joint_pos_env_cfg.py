@@ -19,7 +19,7 @@ from omni.isaac.lab.sensors import TiledCameraCfg
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG, HSRB_TILED_DEPTH_CAMERA_CFG  # isort:skip 
+from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG, HSRB_TILED_DEPTH_CAMERA_CFG, HSRB_DEFAULT_CAMERA_INTRINSICS  # isort:skip 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
 
@@ -65,6 +65,9 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.rewards.gripper_close_reward.params["distance_threshold"] = 0.1
         self.rewards.gripper_close_reward.params["orientation_threshold"] = 0.2
         self.rewards.gripper_close_reward.params["asset_cfg"].joint_names = ["hand_l_proximal_joint", "hand_r_proximal_joint"]
+
+        # # overwrite reward term parameters for is_goal_in_camera_view to use the when there is no TiledCamera in the scene
+        # self.rewards.is_goal_in_camera_view.params["camera_intrinsics"] = HSRB_DEFAULT_CAMERA_INTRINSICS
 
         # Listen for the required transforms (end-effector)
         self.scene.ee_frame = FrameTransformerCfg(

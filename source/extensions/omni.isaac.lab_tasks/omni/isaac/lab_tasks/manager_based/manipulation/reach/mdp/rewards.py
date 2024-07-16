@@ -167,11 +167,59 @@ def is_goal_in_camera_view(env: ManagerBasedRLEnv, camera_name: str, goal_name: 
     The function computes the visibility of the goal object in the camera's view. The reward is 1 if the goal object
     is visible in the camera's view and -0.2 otherwise.
     """
-
-    camera_pos_w: torch.Tensor = env.scene.sensors[camera_name].data.pos_w
-    camera_quat_w: torch.Tensor = env.scene.sensors[camera_name].data.quat_w_world
     camera_image_shape: torch.Tensor = env.scene.sensors[camera_name].data.image_shape
-    camera_intrinsics: torch.TensorW = env.scene.sensors[camera_name].data.intrinsic_matrices
+    camera_intrinsics: torch.Tensor = env.scene.sensors[camera_name].data.intrinsic_matrices
+
+    goal_pos: torch.Tensor = env.command_manager.get_command(goal_name)[:, :3]
+    goal_quat: torch.Tensor = env.command_manager.get_command(goal_name)[:, 3:7]
+
+    depth_pos = env.scene["depth_camera_frame"].data.target_pos_source[..., 0, :] # depth_camera_frame
+    depth_quat = env.scene["depth_camera_frame"].data.target_quat_source[..., 0, :]
+
+    # compute the goal position in the camera's frame
+    p_WG_W = goal_pos # position of goal relative to world in world frame
+    p_WC_W = depth_pos # position of camera relative to world in world frame
+    q_WC = depth_quat # orientation of camera relative to world frame
+
+    p_CG_W = -p_WC_W + p_WG_W # position of the goal relative to the camera in world frame
+    q_CW = quat_conjugate(q_WC) # orientation from world to the camera
+    R_CW = matrix_from_quat(q_CW) # rotation matrix from world to camera
+
+    p_CG_W_reshaped = p_CG_W.unsqueeze(-1)
+
+    p_CG_C = torch.bmm(R_CW, p_CG_W_reshaped).squeeze(-1) # position of the goal relative to the camera in camera frame
+
+    # project the goal position in the camera's frame to the image plane
+    goal_pixel = project_points(p_CG_C, camera_intrinsics)
+    goal_pixel = goal_pixel[0]
+
+    # check if the goal pixel is within the image shape, and if the goal is in front of the camera
+    infront_of_camera = goal_pixel[:, 2] > 0
+    goal_visible = (goal_pixel[:, 0] >= 0.0) & (goal_pixel[:, 0] <= camera_image_shape[1]) & (goal_pixel[:, 1] >= 0.0) & (goal_pixel[:, 1] <= camera_image_shape[0])
+    
+    # false if the goal is behind the camera
+    goal_visible = goal_visible & infront_of_camera
+
+    # if the goal is visible, return 1.0, else return -0.2
+    rewards = torch.where(goal_visible, torch.tensor(1.0), torch.tensor(-0.2))
+
+    return rewards
+
+
+def is_goal_in_camera_view_frame(env: ManagerBasedRLEnv, camera_name: str, goal_name: str, camera_intrinsics: torch.Tensor) -> torch.Tensor:
+    """Reward if the goal object is a fake camera's view. This function is used when the camera position is a 
+    described by a FrameTransformer, and we don't include a TiledCamera. Additionally, this function needs to be
+    passed a camera matrix, since we don't have access to the camera's intrinsic matrix from the simulation.
+
+    The function computes the visibility of the goal object in the camera's view. The reward is 1 if the goal object
+    is visible in the camera's view and -0.2 otherwise.
+    """
+    camera_intrinsics: torch.Tensor = camera_intrinsics
+
+    # get image shape from camera_intrinsics
+    height = camera_intrinsics[1, 2] * 2
+    width = camera_intrinsics[0, 2] * 2
+    camera_image_shape = torch.tensor([height, width])
 
     goal_pos: torch.Tensor = env.command_manager.get_command(goal_name)[:, :3]
     goal_quat: torch.Tensor = env.command_manager.get_command(goal_name)[:, 3:7]
