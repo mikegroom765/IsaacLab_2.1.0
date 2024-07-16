@@ -232,6 +232,11 @@ class RewardsCfg:
         weight=-1.0,
         params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "ee_pose", "frame_name": "ee_frame"},
     )
+    end_effector_height_tracking = RewTerm(
+        func=mdp.height_command_error_frame,
+        weight=-1.0,
+        params={"frame_name": "ee_frame", "command_name": "ee_pose"},
+    )
 
     # action penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.0001)

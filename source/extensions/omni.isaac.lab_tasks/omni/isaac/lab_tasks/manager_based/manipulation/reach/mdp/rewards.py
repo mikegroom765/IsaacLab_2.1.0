@@ -47,6 +47,21 @@ def position_command_error_frame(env: ManagerBasedRLEnv, command_name: str, fram
     distance = torch.norm(frame_pos - command[:, :3], dim=1, p=2)
     return distance
 
+def height_command_error_frame(env: ManagerBasedRLEnv, command_name: str, frame_name: str) -> torch.Tensor:
+    """Penalize tracking of the task-space height error.
+
+    The function computes the height error between the desired position (from the command) and the
+    specified transform listener (FrameTransformer). The height error is computed as 
+    difference between the desired and current z-heights.
+    """
+    # extract the asset (to enable type hinting)
+    frame_height = env.scene[frame_name].data.target_pos_source[..., 0, 2] 
+    command = env.command_manager.get_command(command_name)
+
+    # obtain the distance between the desired and current z-positions, taking the absolute value
+    height_error = torch.abs(frame_height - command[:, 2])
+    return height_error
+
 def position_command_error_tanh(
     env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg
 ) -> torch.Tensor:
