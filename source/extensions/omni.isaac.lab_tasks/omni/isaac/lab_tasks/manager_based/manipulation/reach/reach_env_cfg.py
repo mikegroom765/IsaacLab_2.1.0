@@ -218,19 +218,19 @@ class RewardsCfg:
 
     # task terms
     end_effector_position_tracking = RewTerm(
-        func=mdp.position_command_error,
-        weight=-0.2,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"},
+        func=mdp.position_command_error_frame,
+        weight=-1.0,
+        params={"frame_name": "ee_frame", "command_name": "ee_pose"},
     )
     end_effector_position_tracking_fine_grained = RewTerm(
-        func=mdp.position_command_error_tanh,
-        weight=0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "std": 0.1, "command_name": "ee_pose"},
+        func=mdp.position_command_error_tanh_frame,
+        weight=1.0,
+        params={"frame_name": "ee_frame", "command_name": "ee_pose", "std": 0.1},
     )
     end_effector_orientation_tracking = RewTerm(
-        func=mdp.orientation_command_error,
-        weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", body_names=MISSING), "command_name": "ee_pose"},
+        func=mdp.orientation_command_error_frame,
+        weight=-1.0,
+        params={"asset_cfg": SceneEntityCfg("robot"), "command_name": "ee_pose", "frame_name": "ee_frame"},
     )
 
     # action penalty
@@ -328,7 +328,7 @@ class CurriculumCfg:
         func=mdp.modify_reward_weight, params={"term_name": "joint_vel", "weight": -0.001, "num_steps": 4500}
     )
 
-    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_pos_ori)
 
 
 ##

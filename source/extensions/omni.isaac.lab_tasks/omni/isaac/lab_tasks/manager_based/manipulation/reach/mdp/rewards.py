@@ -32,6 +32,20 @@ def position_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg:
     curr_pos_w = asset.data.body_state_w[:, asset_cfg.body_ids[0], :3]  # type: ignore
     return torch.norm(curr_pos_w - des_pos_w, dim=1)
 
+def position_command_error_frame(env: ManagerBasedRLEnv, command_name: str, frame_name: str) -> torch.Tensor:
+    """Penalize tracking of the position error using L2-norm.
+
+    The function computes the position error between the desired position (from the command) and the
+    specified transform listener (FrameTransformer). The position error is computed as the L2-norm
+    of the difference between the desired and current positions.
+    """
+    # extract the asset (to enable type hinting)
+    frame_pos = env.scene[frame_name].data.target_pos_source[..., 0, :] 
+    command = env.command_manager.get_command(command_name)
+
+    # obtain the distance between the desired and current positions
+    distance = torch.norm(frame_pos - command[:, :3], dim=1, p=2)
+    return distance
 
 def position_command_error_tanh(
     env: ManagerBasedRLEnv, std: float, command_name: str, asset_cfg: SceneEntityCfg
@@ -51,6 +65,20 @@ def position_command_error_tanh(
     distance = torch.norm(curr_pos_w - des_pos_w, dim=1)
     return 1 - torch.tanh(distance / std)
 
+def position_command_error_tanh_frame(env: ManagerBasedRLEnv, command_name: str, frame_name: str, std: float) -> torch.Tensor:
+    """Penalize tracking of the position error using L2-norm.
+
+    The function computes the position error between the desired position (from the command) and the
+    specified transform listener (FrameTransformer). The position error is computed as the L2-norm
+    of the difference between the desired and current positions, and is mapped using a tanh kernel.
+    """
+    # extract the asset (to enable type hinting)
+    frame_pos = env.scene[frame_name].data.target_pos_source[..., 0, :] 
+    command = env.command_manager.get_command(command_name)
+
+    # obtain the distance between the desired and current positions
+    distance = torch.norm(frame_pos - command[:, :3], dim=1, p=2)
+    return 1 - torch.tanh(distance / std)
 
 def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalize tracking orientation error using shortest path.
@@ -68,6 +96,22 @@ def orientation_command_error(env: ManagerBasedRLEnv, command_name: str, asset_c
     curr_quat_w = asset.data.body_state_w[:, asset_cfg.body_ids[0], 3:7]  # type: ignore
     return quat_error_magnitude(curr_quat_w, des_quat_w)
 
+def orientation_command_error_frame(env: ManagerBasedRLEnv, command_name: str, frame_name: str, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Penalize tracking orientation error using shortest path.
+
+    The function computes the orientation error between the desired orientation (from the command) and the
+    current orientation of transform listener (FrameTransformer) (in world frame). The orientation error is computed as the shortest
+    path between the desired and current orientations.
+    """
+
+    frame_ori_w = env.scene[frame_name].data.target_quat_w[..., 0, :] 
+    # extract the asset (to enable type hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    # obtain the desired and current orientations
+    des_quat_b = command[:, 3:7]
+    des_quat_w = quat_mul(asset.data.root_state_w[:, 3:7], des_quat_b)
+    return quat_error_magnitude(frame_ori_w, des_quat_w)
 
 def contact_penalty(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """Penalise when the contact force on the sensor exceeds the force threshold.

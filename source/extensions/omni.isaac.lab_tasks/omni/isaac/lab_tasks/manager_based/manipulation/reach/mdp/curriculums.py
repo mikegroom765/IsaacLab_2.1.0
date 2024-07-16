@@ -26,13 +26,13 @@ if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedRLEnv
 
 
-def terrain_levels_vel(
+def terrain_levels_pos_ori(
     env: ManagerBasedRLEnv, env_ids: Sequence[int], asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")
 ) -> torch.Tensor:
-    """Curriculum based on the distance the robot walked when commanded to move at a desired velocity.
+    """Curriculum based on the error of positon and orientation of robot end effector when commanded to reach a target. 
 
-    This term is used to increase the difficulty of the terrain when the robot walks far enough and decrease the
-    difficulty when the robot walks less than half of the distance required by the commanded velocity.
+    This term is used to increase the difficulty of the terrain when the robot gets close enough and decrease the
+    difficulty when the robot is less than the thresholds required by the commanded pose.
 
     .. note::
         It is only possible to use this term with the terrain type ``generator``. For further information

@@ -38,11 +38,6 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
 
         # switch robot to HSRB
         self.scene.robot = HSRB_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-        # override rewards
-        # TODO: Update for the HSRB robot
-        self.rewards.end_effector_position_tracking.params["asset_cfg"].body_names = ["hand_palm_link"]
-        self.rewards.end_effector_position_tracking_fine_grained.params["asset_cfg"].body_names = ["hand_palm_link"]
-        self.rewards.end_effector_orientation_tracking.params["asset_cfg"].body_names = ["hand_palm_link"]
 
         # override actions
         self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
