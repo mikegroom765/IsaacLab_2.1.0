@@ -170,6 +170,18 @@ def height_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg, offset: float 
     return sensor.data.pos_w[:, 2].unsqueeze(1) - sensor.data.ray_hits_w[..., 2] - offset
 
 
+def lidar_2d_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """2D Lidar scan from the given sensor w.r.t. the sensor's frame.
+    """
+    # extract the used quantities (to enable type-hinting)
+    sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
+    # calculate the distance from the sensor to the hit points
+    distance = torch.norm(sensor.data.ray_hits_w[..., :2] - sensor.data.pos_w[:, :2], dim=-1)
+    # if the distance is greater than the max distance, set it to the max distance
+    max_distance = sensor.cfg.max_distance
+    distance = torch.where(distance > max_distance, torch.tensor(max_distance), distance)
+    return distance
+
 def body_incoming_wrench(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Incoming spatial wrench on bodies of an articulation in the simulation world frame.
 

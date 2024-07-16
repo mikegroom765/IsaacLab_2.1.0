@@ -99,10 +99,6 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
 
         # add lidar
         self.scene.lidar = HSRB_LIDAR_CFG.copy()
-        # reduce the horizontal resolution to 1.0
-        self.scene.lidar.replace(pattern_cfg=patterns.LidarPatternCfg(
-            channels=1, vertical_fov_range=(0.0, 0.0), horizontal_fov_range=(45, 315), horizontal_res=1.0)
-        )
 
         # add depth camera
         # self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()

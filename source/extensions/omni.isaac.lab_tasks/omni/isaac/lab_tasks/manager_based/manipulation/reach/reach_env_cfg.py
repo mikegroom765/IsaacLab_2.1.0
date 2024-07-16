@@ -174,6 +174,13 @@ class ObservationsCfg:
 
         # TODO: Add global pose (odom) to the observation space
 
+        lidar_scan = ObsTerm(
+            func=mdp.lidar_2d_scan,
+            params={"sensor_cfg": SceneEntityCfg("lidar")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            # clip=(-1.0, 1.0),
+        )
+
         def __post_init__(self):
             self.enable_corruption = True
             self.concatenate_terms = True
@@ -342,6 +349,8 @@ class TerminationsCfg:
     """Termination terms for the MDP."""
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+    base_contact_back = DoneTerm(func=mdp.illegal_contact, params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"])})
+    base_contact_front = DoneTerm(func=mdp.illegal_contact, params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"])})
 
 
 @configclass
