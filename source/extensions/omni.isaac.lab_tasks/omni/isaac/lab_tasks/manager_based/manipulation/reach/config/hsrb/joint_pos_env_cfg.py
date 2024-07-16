@@ -101,7 +101,7 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.scene.lidar = HSRB_LIDAR_CFG.copy()
 
         # add depth camera
-        # self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
+        self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
         self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
 
         self.commands.ee_pose = mdp.UniformPoseCommandCfg(

@@ -180,6 +180,12 @@ class ObservationsCfg:
             noise=Unoise(n_min=-0.1, n_max=0.1),
             # clip=(-1.0, 1.0),
         )
+        depth_camera = ObsTerm(
+            func=mdp.depth_camera,
+            params={"sensor_cfg": SceneEntityCfg("depth_camera"), "asset_cfg": SceneEntityCfg("robot")},
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+            # clip=(-1.0, 1.0),
+        )
 
         def __post_init__(self):
             self.enable_corruption = True
