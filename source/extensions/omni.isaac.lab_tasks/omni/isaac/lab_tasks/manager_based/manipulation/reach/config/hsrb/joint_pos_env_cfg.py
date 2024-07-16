@@ -49,7 +49,7 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
             asset_name="robot", 
             joint_names=["hand_l_proximal_joint", "hand_r_proximal_joint"], 
-            open_command_expr={"hand_l_proximal_joint": 0.75, "hand_r_proximal_joint": 0.75},
+            open_command_expr={"hand_l_proximal_joint": 1.2, "hand_r_proximal_joint": 1.2}, # 0.75 # revolute joint in articulation has a limit of 1.24 radians (71 degrees)
             close_command_expr={"hand_l_proximal_joint": 0.0, "hand_r_proximal_joint": 0.0}
         )
         self.actions.head_action = mdp.RelativeJointPositionActionCfg(
@@ -59,6 +59,12 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         # end-effector is along z-direction
         # self.commands.ee_pose.body_name = "base_footprint"
         # self.commands.ee_pose.ranges.pitch = (math.pi, math.pi)
+
+
+        self.rewards.gripper_close_reward.params["open_joint_pos"] = 1.1
+        self.rewards.gripper_close_reward.params["distance_threshold"] = 0.1
+        self.rewards.gripper_close_reward.params["orientation_threshold"] = 0.2
+        self.rewards.gripper_close_reward.params["asset_cfg"].joint_names = ["hand_l_proximal_joint", "hand_r_proximal_joint"]
 
         # Listen for the required transforms (end-effector)
         self.scene.ee_frame = FrameTransformerCfg(

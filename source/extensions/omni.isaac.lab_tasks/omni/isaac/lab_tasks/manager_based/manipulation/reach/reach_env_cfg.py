@@ -238,12 +238,35 @@ class RewardsCfg:
         params={"frame_name": "ee_frame", "command_name": "ee_pose"},
     )
 
-    # action penalty
+    # action rate penalty
     action_rate = RewTerm(func=mdp.action_rate_l2, weight=-0.0001)
     joint_vel = RewTerm(
         func=mdp.joint_vel_l2,
         weight=-0.0001,
         params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+    joint_acc = RewTerm(
+        func=mdp.joint_acc_l2,
+        weight=-0.0001,
+        params={"asset_cfg": SceneEntityCfg("robot")},
+    )
+
+    # Stay alive bonus
+    alive = RewTerm(func=mdp.is_alive, weight=1.0)
+    # Terminatation penalty
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-1.0)
+
+    # reward for closing the gripper when near the command pose
+    # distance_threshold: float, orientation_threshold: float, command_name: str, frame_name:str, open_joint_pos: float, asset_cfg: SceneEntityCfg
+    gripper_close_reward = RewTerm(
+        func=mdp.grasp_close,
+        weight=1.0,
+        params={"asset_cfg": SceneEntityCfg("robot"), 
+                "command_name": "ee_pose", 
+                "frame_name": "ee_frame", 
+                "open_joint_pos": MISSING, 
+                "distance_threshold": MISSING, 
+                "orientation_threshold": MISSING},
     )
 
     # is goal in camera view

@@ -142,7 +142,24 @@ def contact_penalty(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneE
     rewards = bool_tensor.float() * -1.0
     return rewards
 
+def grasp_close(env: RLTaskEnv, distance_threshold: float, orientation_threshold: float, command_name: str, frame_name:str, open_joint_pos: float, asset_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Reward for closing the fingers when being close to the handle.
 
+    The :attr:`distance_threshold` is the distance from the handle at which the gripper should be closed.
+    The :attr:`orientation_threshold` is the orientation error threshold between the handle and the end effector at which the gripper should be closed.
+    The :attr:`open_joint_pos` is the joint position when the fingers are open.
+
+    Note:
+        It is assumed that zero joint position corresponds to the fingers being closed.
+    """
+    gripper_joint_pos = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
+
+    distance = position_command_error_frame(env=env, command_name=command_name, frame_name=frame_name)
+    orientation_error = orientation_command_error_frame(env=env, command_name="ee_pose", frame_name="ee_frame", asset_cfg=asset_cfg)
+
+    is_close = (distance <= distance_threshold) & (orientation_error <= orientation_threshold)
+
+    return is_close * torch.sum(open_joint_pos - gripper_joint_pos, dim=-1)
 
 def is_goal_in_camera_view(env: ManagerBasedRLEnv, camera_name: str, goal_name: str) -> torch.Tensor:
     """Reward if the goal object is in the camera's view.
