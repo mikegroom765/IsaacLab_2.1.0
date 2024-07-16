@@ -188,18 +188,23 @@ def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: Sc
     # extract the used quantities (to enable type-hinting)
     sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
     points_w = sensor.data.ray_hits_w
-
-    # clip the points to the max distance
-    max_distance = sensor.cfg.max_distance
-    points_w = torch.where(points_w[..., 2] > max_distance, torch.tensor(max_distance), points_w)
-    print(f"points_w: {points_w}")
     # convert the points to the robot base frame
-    base_frame_pos_w = env.scene[asset_cfg.name].data.root_pos_w
-    base_frame_quat_w = env.scene[asset_cfg.name].data.root_quat_w
-    print(f"base_frame_pos_w: {base_frame_pos_w}")
-    print(f"base_frame_quat_w: {base_frame_quat_w}")
-    points_b = math_utils.transform_points(points_w, base_frame_pos_w, base_frame_quat_w)
-    print(f"points_b: {points_b}")
+    p_WB_W = env.scene[asset_cfg.name].data.root_pos_w # position of the robot base frame in world frame
+    R_WB = env.scene[asset_cfg.name].data.root_quat_w # quaternion of the robot base frame in world frame
+    points_b = math_utils.transform_points(points_w, p_WB_W, R_WB) # transform the points to the robot base frame
+
+    # if points are outside the max distance, set them to the zero vector
+    max_distance = sensor.cfg.max_distance
+    points_b = torch.where(torch.norm(points_w - sensor.data.pos_w, dim=-1) > max_distance, torch.zeros(3), points_b)
+
+    # print(f"points_w: {points_w}")
+    # # convert the points to the robot base frame
+    # base_frame_pos_w = env.scene[asset_cfg.name].data.root_pos_w
+    # base_frame_quat_w = env.scene[asset_cfg.name].data.root_quat_w
+    # print(f"base_frame_pos_w: {base_frame_pos_w}")
+    # print(f"base_frame_quat_w: {base_frame_quat_w}")
+    # points_b = math_utils.transform_points(points_w, base_frame_pos_w, base_frame_quat_w)
+    # print(f"points_b: {points_b}")
 
     return points_b
 
