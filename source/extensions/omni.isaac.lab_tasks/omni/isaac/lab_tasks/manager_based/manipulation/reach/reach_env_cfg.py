@@ -316,62 +316,62 @@ class RewardsCfg:
     #### Contact Force Penalties ####
     #### Base ####
     contact_penalty_base_b_bumper = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"])},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"]), "asset_cfg": SceneEntityCfg("robot"), "link_name": "base_link"},
     )
     contact_penalty_base_f_bumper = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"])},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"]), "asset_cfg": SceneEntityCfg("robot"), "link_name": "base_link"},
     )
     #### Arm ####
     contact_penalty_arm_flex = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_flex_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_flex_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "arm_flex_link"},
     )
     contact_penalty_arm_roll = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_roll_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_roll_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "arm_roll_link"},
     )
     #### Wrist ####
     contact_penalty_wrist_roll = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("wrist_roll_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("wrist_roll_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "wrist_roll_link"},
     )
     #### (Self-collisions) Gripper ####
     contact_penalty_self_gripper_hand_palm_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_palm_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_palm_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_palm_link"},
     )
     contact_penalty_self_gripper_hand_l_spring_proximal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_spring_proximal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_spring_proximal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_spring_proximal_link"},
     )
     contact_penalty_self_gripper_hand_r_spring_proximal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_spring_proximal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_spring_proximal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_r_spring_proximal_link"},
     )
     contact_penalty_self_gripper_hand_l_distal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_distal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_distal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_distal_link"},
     )
     contact_penalty_self_gripper_hand_r_distal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_distal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_distal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_r_distal_link"},
     )
     contact_penalty_self_gripper_hand_l_finger_vacuum_frame = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_finger_vacuum_frame_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_finger_vacuum_frame_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_finger_vacuum_frame"},
     )
 
 @configclass
