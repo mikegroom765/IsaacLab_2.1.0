@@ -8,6 +8,7 @@ from omni.isaac.lab.utils import configclass
 from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlOnPolicyRunnerCfg,
     RslRlPpoActorCriticCfg,
+    RslRlPpoActorCriticCustomCfg,
     RslRlPpoAlgorithmCfg,
     RslRlDppoAlgorithmCfg,
     RslRlDppoActorCriticCfg.
@@ -18,13 +19,14 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
 @configclass
 class HSRBReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 1000
-    save_interval = 50
+    max_iterations = 10000
+    save_interval = 500
     experiment_name = "hsrb_reach"
     run_name = ""
     resume = False
     empirical_normalization = False
-    policy = RslRlPpoActorCriticCfg(
+    policy = RslRlPpoActorCriticCustomCfg(
+        class_name="ActorCritic",
         init_noise_std=1.0,
         actor_hidden_dims=[64, 64],
         critic_hidden_dims=[64, 64],

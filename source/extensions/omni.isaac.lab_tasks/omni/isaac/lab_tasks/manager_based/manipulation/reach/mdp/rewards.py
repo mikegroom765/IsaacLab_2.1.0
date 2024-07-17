@@ -142,6 +142,26 @@ def contact_penalty(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneE
     rewards = bool_tensor.float() * -1.0
     return rewards
 
+def contact_penalty_velocity_scaled(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg, link_name: str, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalise when the contact force on the sensor exceeds the force threshold. This penalty is scaled by the linear velocity of the body
+    experiencing the contact force.
+    
+    The function computes the net contact forces on the sensor and penalizes when the maximum contact force exceeds the
+    threshold. The penalty is -1.0 if the contact force exceeds the threshold and 0.0 otherwise.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    #get index of matching string from link_name 
+    link_id = asset.body_names.index(link_name)
+    velocities = asset.data.body_vel_w[:, link_id, :3]
+    velocities_scaled = torch.norm(velocities, dim=-1)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    net_contact_forces = contact_sensor.data.net_forces_w_history
+    # check if any contact force exceeds the threshold
+    bool_tensor = torch.any(torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold, dim=1)
+    rewards = bool_tensor.float() * -1.0 * velocities_scaled
+    return rewards
+
 def grasp_close(env: RLTaskEnv, distance_threshold: float, orientation_threshold: float, command_name: str, frame_name:str, open_joint_pos: float, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Reward for closing the fingers when being close to the handle.
 

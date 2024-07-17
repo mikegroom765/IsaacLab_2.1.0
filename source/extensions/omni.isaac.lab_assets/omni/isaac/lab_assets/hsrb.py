@@ -19,6 +19,7 @@ from omni.isaac.lab.assets.articulation import ArticulationCfg
 from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
 from omni.isaac.lab.sensors import RayCasterCfg, patterns, TiledCameraCfg
 from .velodyne import HOKUYO_UST_20LX_RAYCASTER_CFG
+import torch
 
 HSRB_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
@@ -155,4 +156,6 @@ HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
 
 """Configuration of the HSRB's depth camera sensor, implemented as a tiled camera."""
 
-HSRB_DEFAULT_CAMERA_INTRINSICS = torch.tensor([0., 0., 0.,], [0., 0., 0.,], [0., 0., 0.,]).to("cuda")
+HSRB_DEFAULT_CAMERA_INTRINSICS = torch.tensor([[264.8276, 0.0000, 320.0000],
+                                                [0.0000, 264.8276, 240.0000],
+                                                [0.0000, 0.0000, 1.0000]]).to("cuda")

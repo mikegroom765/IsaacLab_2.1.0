@@ -180,6 +180,21 @@ class ObservationsCfg:
             noise=Unoise(n_min=-0.1, n_max=0.1),
             # clip=(-1.0, 1.0),
         )
+        # depth_camera = ObsTerm(
+        #     func=mdp.depth_camera,
+        #     params={"sensor_cfg": SceneEntityCfg("depth_camera"), "asset_cfg": SceneEntityCfg("robot")},
+        #     noise=Unoise(n_min=-0.1, n_max=0.1),
+        #     # clip=(-1.0, 1.0),
+        # )
+
+        def __post_init__(self):
+            self.enable_corruption = True
+            self.concatenate_terms = True
+
+    @configclass
+    class DepthCfg(ObsGroup):
+        """Observations for policy group."""
+
         depth_camera = ObsTerm(
             func=mdp.depth_camera,
             params={"sensor_cfg": SceneEntityCfg("depth_camera"), "asset_cfg": SceneEntityCfg("robot")},
@@ -191,8 +206,10 @@ class ObservationsCfg:
             self.enable_corruption = True
             self.concatenate_terms = True
 
+
     # observation groups
     policy: PolicyCfg = PolicyCfg()
+    depth: DepthCfg = DepthCfg()
 
 
 @configclass
@@ -282,79 +299,79 @@ class RewardsCfg:
                 "orientation_threshold": MISSING},
     )
 
-    # is goal in camera view - use when using tiled camera
-    is_goal_in_camera_view = RewTerm(
-        func=mdp.is_goal_in_camera_view,
-        weight=0.1,
-        params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
-    )
-
-    # # is goal in camera view - use when not using tiled camera
+    # # is goal in camera view - use when using tiled camera
     # is_goal_in_camera_view = RewTerm(
-    #     func=mdp.is_goal_in_camera_view_frame,
+    #     func=mdp.is_goal_in_camera_view,
     #     weight=0.1,
-    #     params={"camera_name": "depth_camera", "goal_name": "ee_pose", "camera_intrinsics": MISSING}, 
+    #     params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
     # )
+
+    # is goal in camera view - use when not using tiled camera
+    is_goal_in_camera_view = RewTerm(
+        func=mdp.is_goal_in_camera_view_frame,
+        weight=0.1,
+        params={"camera_name": "depth_camera", "goal_name": "ee_pose", "camera_intrinsics": MISSING}, 
+    )
 
     #### Contact Force Penalties ####
     #### Base ####
     contact_penalty_base_b_bumper = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"])},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"]), "asset_cfg": SceneEntityCfg("robot"), "link_name": "base_link"},
     )
     contact_penalty_base_f_bumper = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"])},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"]), "asset_cfg": SceneEntityCfg("robot"), "link_name": "base_link"},
     )
     #### Arm ####
     contact_penalty_arm_flex = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_flex_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_flex_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "arm_flex_link"},
     )
     contact_penalty_arm_roll = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_roll_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_roll_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "arm_roll_link"},
     )
     #### Wrist ####
     contact_penalty_wrist_roll = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("wrist_roll_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("wrist_roll_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "wrist_roll_link"},
     )
     #### (Self-collisions) Gripper ####
     contact_penalty_self_gripper_hand_palm_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_palm_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_palm_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_palm_link"},
     )
     contact_penalty_self_gripper_hand_l_spring_proximal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_spring_proximal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_spring_proximal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_spring_proximal_link"},
     )
     contact_penalty_self_gripper_hand_r_spring_proximal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_spring_proximal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_spring_proximal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_r_spring_proximal_link"},
     )
     contact_penalty_self_gripper_hand_l_distal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_distal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_distal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_distal_link"},
     )
     contact_penalty_self_gripper_hand_r_distal_link = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_distal_link_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_distal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_r_distal_link"},
     )
     contact_penalty_self_gripper_hand_l_finger_vacuum_frame = RewTerm(
-        func=mdp.contact_penalty,
+        func=mdp.contact_penalty_velocity_scaled,
         weight=1.0,
-        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_finger_vacuum_frame_contact_force")},
+        params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_finger_vacuum_frame_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_finger_vacuum_frame"},
     )
 
 @configclass

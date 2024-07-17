@@ -176,7 +176,7 @@ def lidar_2d_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg) -> torch.Ten
     # extract the used quantities (to enable type-hinting)
     sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
     # calculate the distance from the sensor to the hit points
-    distance = torch.norm(sensor.data.ray_hits_w[..., :2] - sensor.data.pos_w[:, :2], dim=-1)
+    distance = torch.norm(sensor.data.ray_hits_w[..., :2] - sensor.data.pos_w[:, None, :2], dim=-1)
     # if the distance is greater than the max distance, set it to the max distance
     max_distance = sensor.cfg.max_distance
     distance = torch.where(distance > max_distance, torch.tensor(max_distance), distance)
@@ -195,17 +195,9 @@ def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: Sc
 
     # if points are outside the max distance, set them to the zero vector
     max_distance = sensor.cfg.max_distance
-    points_b = torch.where(torch.norm(points_w - sensor.data.pos_w, dim=-1) > max_distance, torch.zeros(3), points_b)
-
-    # print(f"points_w: {points_w}")
-    # # convert the points to the robot base frame
-    # base_frame_pos_w = env.scene[asset_cfg.name].data.root_pos_w
-    # base_frame_quat_w = env.scene[asset_cfg.name].data.root_quat_w
-    # print(f"base_frame_pos_w: {base_frame_pos_w}")
-    # print(f"base_frame_quat_w: {base_frame_quat_w}")
-    # points_b = math_utils.transform_points(points_w, base_frame_pos_w, base_frame_quat_w)
-    # print(f"points_b: {points_b}")
-
+    # create a tensor of zeros with the same shape as points_b
+    zeros = torch.zeros(points_b.shape).to("cuda")
+    points_b = torch.where(torch.norm(points_w - sensor.data.pos_w[:, None, :3], dim=-1, keepdim=True).expand_as(points_b) > max_distance, zeros, points_b)
     return points_b
 
 def body_incoming_wrench(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:

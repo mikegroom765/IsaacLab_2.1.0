@@ -28,6 +28,24 @@ class RslRlPpoActorCriticCfg:
     activation: str = MISSING
     """The activation function for the actor and critic networks."""
 
+@configclass
+class RslRlPpoActorCriticCustomCfg(RslRlPpoActorCriticCfg):
+    """Configuration for PPO actor-critic networks with custom architecture."""
+
+    class_name: str = "ActorCriticCustom"
+    """The policy class name. Default is ActorCriticCustom."""
+
+    init_noise_std: float = MISSING
+
+    lidar_input_hidden_dims: list[int] = MISSING
+
+    depth_input_hidden_dims: list[int] = MISSING
+
+    actor_hidden_dims: list[int] = MISSING
+
+    critic_hidden_dims: list[int] = MISSING
+
+    activation: str = MISSING
 
 @configclass
 class RslRlPpoAlgorithmCfg:
