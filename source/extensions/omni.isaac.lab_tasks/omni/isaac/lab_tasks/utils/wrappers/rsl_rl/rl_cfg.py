@@ -147,3 +147,177 @@ class RslRlOnPolicyRunnerCfg:
 
     If regex expression, the latest (alphabetical order) matching file will be loaded.
     """
+
+@configclass
+class RslRlDppoActorCriticCfg:
+    """Configuration for the DPPO actor-critic networks."""
+
+    # class_name: str = "ActorCritic"
+    # """The policy class name. Default is ActorCritic."""
+
+    actor_noise_std: float = MISSING
+    """The initial noise standard deviation for the policy."""
+
+    actor_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the actor network."""
+
+    critic_hidden_dims: list[int] = MISSING
+    """The hidden dimensions of the critic network."""
+
+    actor_activations: list[str] = MISSING
+    """The activation functions for the actor network. Add "linear" for the last layer."""
+
+    critic_activations: list[str] = MISSING
+    """The activation functions for the critic network. Add "linear" for the last layer."""
+
+
+@configclass
+class RslRlDppoAlgorithmCfg:
+    """Configuration for the DPPO algorithm."""
+
+    # class_name: str = "DPPO"
+    # """The algorithm class name. Default is DPPO."""
+
+    critic_network: str = "qrdqn"
+    """The critic network to use. Default is qrdqn."""
+
+    iqn_action_samples: int = MISSING
+    """The number of samples to use for the critic IQN network when acting."""
+
+    iqn_embedding_size: int = MISSING
+    """The embedding size to use for the critic IQN network."""
+
+    iqn_feature_layers: int = MISSING
+    """The number of feature layers to use for the critic IQN network."""
+
+    iqn_value_samples: int = MISSING
+    """The number of samples to use for the critic IQN network when computing the value."""
+
+    qrdqn_quantile_count: int = MISSING
+    """The number of quantiles to use for the critic QR network."""
+
+    value_lambda: float = MISSING
+    """The lambda parameter for the SR(lambda) value target computation."""
+
+    value_loss: str = MISSING
+    """The loss function to use for the critic network."""
+
+    value_loss_kwargs: Dict = MISSING
+    """Keyword arguments for computing the value loss."""
+
+    value_measure: str = MISSING
+    """The probability measure to apply to the critic network output distribution when
+                updating the policy."""
+    
+    value_measure_adaptation: Union[Tuple, None] = MISSING
+    """Controls adaptation of the value measure. If None, no
+                adaptation is performed. If a tuple, the tuple specifies the observations that are passed to the value
+                measure."""
+
+    value_measure_kwargs: Dict = MISSING
+    """The keyword arguments to pass to the value measure."""
+
+    value_coeff: float = MISSING
+    """The coefficient for the value loss."""
+
+    clip_ratio: float = MISSING
+    """The clipping parameter for the policy."""
+
+    entropy_coeff: float = MISSING
+    """The coefficient for the entropy loss."""
+
+    batch_count: int = MISSING
+    """The number of mini-batches per update."""
+
+    learning_rate: float = MISSING
+    """The learning rate for the policy."""
+
+    schedule: str = MISSING
+    """The learning rate schedule."""
+
+    gamma: float = MISSING
+    """The discount factor."""
+
+    gae_lambda: float = MISSING
+    """The lambda parameter for Generalized Advantage Estimation (GAE)."""
+
+    target_kl: float = MISSING
+    """The target KL divergence."""
+
+    gradient_clip: float = MISSING
+    """The maximum gradient norm."""
+
+@configclass
+class RslRlRunnerCfg:
+    """Configuration of the runner for on-policy algorithms."""
+
+    seed: int = 42
+    """The seed for the experiment. Default is 42."""
+
+    device: str = "cuda"
+    """The device for the rl-agent. Default is cuda."""
+
+    num_steps_per_env: int = MISSING
+    """The number of steps per environment per update."""
+
+    max_iterations: int = MISSING
+    """The maximum number of iterations."""
+
+    empirical_normalization: bool = MISSING
+    """Whether to use empirical normalization."""
+
+    policy: RslRlDppoActorCriticCfg = MISSING
+    """The policy configuration."""
+
+    algorithm: RslRlDppoAlgorithmCfg = MISSING
+    """The algorithm configuration."""
+
+    ##
+    # Checkpointing parameters
+    ##
+
+    save_interval: int = MISSING
+    """The number of iterations between saves."""
+
+    experiment_name: str = MISSING
+    """The experiment name."""
+
+    run_name: str = ""
+    """The run name. Default is empty string.
+
+    The name of the run directory is typically the time-stamp at execution. If the run name is not empty,
+    then it is appended to the run directory's name, i.e. the logging directory's name will become
+    ``{time-stamp}_{run_name}``.
+    """
+
+    ##
+    # Logging parameters
+    ##
+
+    logger: Literal["tensorboard", "neptune", "wandb"] = "tensorboard"
+    """The logger to use. Default is tensorboard."""
+
+    neptune_project: str = "orbit"
+    """The neptune project name. Default is "orbit"."""
+
+    wandb_project: str = "orbit"
+    """The wandb project name. Default is "orbit"."""
+
+    ##
+    # Loading parameters
+    ##
+
+    resume: bool = False
+    """Whether to resume. Default is False."""
+
+    load_run: str = ".*"
+    """The run directory to load. Default is ".*" (all).
+
+    If regex expression, the latest (alphabetical order) matching run will be loaded.
+    """
+
+    load_checkpoint: str = "model_.*.pt"
+    """The checkpoint file to load. Default is ``"model_.*.pt"`` (all).
+
+    If regex expression, the latest (alphabetical order) matching file will be loaded.
+    """
