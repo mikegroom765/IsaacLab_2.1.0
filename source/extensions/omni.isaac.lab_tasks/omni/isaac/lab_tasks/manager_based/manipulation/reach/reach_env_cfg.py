@@ -299,19 +299,19 @@ class RewardsCfg:
                 "orientation_threshold": MISSING},
     )
 
-    # is goal in camera view - use when using tiled camera
-    is_goal_in_camera_view = RewTerm(
-        func=mdp.is_goal_in_camera_view,
-        weight=0.1,
-        params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
-    )
-
-    # # is goal in camera view - use when not using tiled camera
+    # # is goal in camera view - use when using tiled camera
     # is_goal_in_camera_view = RewTerm(
-    #     func=mdp.is_goal_in_camera_view_frame,
+    #     func=mdp.is_goal_in_camera_view,
     #     weight=0.1,
-    #     params={"camera_name": "depth_camera", "goal_name": "ee_pose", "camera_intrinsics": MISSING}, 
+    #     params={"camera_name": "depth_camera_tiled", "goal_name": "ee_pose"}, 
     # )
+
+    # is goal in camera view - use when not using tiled camera
+    is_goal_in_camera_view = RewTerm(
+        func=mdp.is_goal_in_camera_view_frame,
+        weight=0.1,
+        params={"camera_name": "depth_camera", "goal_name": "ee_pose", "camera_intrinsics": MISSING}, 
+    )
 
     #### Contact Force Penalties ####
     #### Base ####

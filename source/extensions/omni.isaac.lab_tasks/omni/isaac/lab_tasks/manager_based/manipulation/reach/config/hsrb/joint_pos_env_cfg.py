@@ -67,7 +67,7 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.rewards.gripper_close_reward.params["asset_cfg"].joint_names = ["hand_l_proximal_joint", "hand_r_proximal_joint"]
 
         # # overwrite reward term parameters for is_goal_in_camera_view to use the when there is no TiledCamera in the scene
-        # self.rewards.is_goal_in_camera_view.params["camera_intrinsics"] = HSRB_DEFAULT_CAMERA_INTRINSICS
+        self.rewards.is_goal_in_camera_view.params["camera_intrinsics"] = HSRB_DEFAULT_CAMERA_INTRINSICS
 
         # Listen for the required transforms (end-effector)
         self.scene.ee_frame = FrameTransformerCfg(
@@ -105,7 +105,7 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
 
         # add depth camera
         self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
-        self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
+        # self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
 
         self.commands.ee_pose = mdp.UniformPoseCommandCfg(
             asset_name="robot",
