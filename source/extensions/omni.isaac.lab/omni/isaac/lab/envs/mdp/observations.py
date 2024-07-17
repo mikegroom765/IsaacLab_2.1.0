@@ -195,17 +195,9 @@ def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: Sc
 
     # if points are outside the max distance, set them to the zero vector
     max_distance = sensor.cfg.max_distance
-    points_b = torch.where(torch.norm(points_w - sensor.data.pos_w, dim=-1) > max_distance, torch.zeros(3), points_b)
-
-    # print(f"points_w: {points_w}")
-    # # convert the points to the robot base frame
-    # base_frame_pos_w = env.scene[asset_cfg.name].data.root_pos_w
-    # base_frame_quat_w = env.scene[asset_cfg.name].data.root_quat_w
-    # print(f"base_frame_pos_w: {base_frame_pos_w}")
-    # print(f"base_frame_quat_w: {base_frame_quat_w}")
-    # points_b = math_utils.transform_points(points_w, base_frame_pos_w, base_frame_quat_w)
-    # print(f"points_b: {points_b}")
-
+    # create a tensor of zeros with the same shape as points_b
+    zeros = torch.zeros(points_b.shape).to("cuda")
+    points_b = torch.where(torch.norm(points_w - sensor.data.pos_w, dim=-1, keepdim=True).expand_as(points_b) > max_distance, zeros, points_b)
     return points_b
 
 def body_incoming_wrench(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
