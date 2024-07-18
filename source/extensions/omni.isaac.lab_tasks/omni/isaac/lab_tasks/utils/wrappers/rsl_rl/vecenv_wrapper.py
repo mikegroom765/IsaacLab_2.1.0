@@ -18,6 +18,7 @@ The following example shows how to wrap an environment for RSL-RL:
 
 import gymnasium as gym
 import torch
+from typing import Union
 
 from rsl_rl.env import VecEnv
 
@@ -141,9 +142,18 @@ class RslRlVecEnvWrapper(VecEnv):
         """Returns the current observations of the environment."""
         if hasattr(self.unwrapped, "observation_manager"):
             obs_dict = self.unwrapped.observation_manager.compute()
+            # print(f"obs_dict: {self.unwrapped.observation_manager.compute()}")
         else:
             obs_dict = self.unwrapped._get_observations()
         return obs_dict["policy"], {"observations": obs_dict}
+
+    def get_privileged_observations(self) -> Union[torch.Tensor, None]:
+        """Returns the privileged observations of the environment."""
+        if self.num_privileged_obs > 0:
+            obs_dict = self.unwrapped.observation_manager.compute()
+            return obs_dict["critic"]
+        return None
+        # return obs_dict["policy"]
 
     @property
     def episode_length_buf(self) -> torch.Tensor:
@@ -175,6 +185,7 @@ class RslRlVecEnvWrapper(VecEnv):
     def step(self, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         # record step information
         obs_dict, rew, terminated, truncated, extras = self.env.step(actions)
+        print(f"obs_dict: {obs_dict}")
         # compute dones for compatibility with RSL-RL
         dones = (terminated | truncated).to(dtype=torch.long)
         # move extra observations to the extras dict
@@ -185,6 +196,7 @@ class RslRlVecEnvWrapper(VecEnv):
         if not self.unwrapped.cfg.is_finite_horizon:
             extras["time_outs"] = truncated
 
+        print(f"extras: {extras}")
         # return the step information
         return obs, rew, dones, extras
 

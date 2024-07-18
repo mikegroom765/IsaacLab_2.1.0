@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from dataclasses import MISSING
-from typing import Literal
+from typing import Literal, Dict, Union, Tuple
 
 from omni.isaac.lab.utils import configclass
 

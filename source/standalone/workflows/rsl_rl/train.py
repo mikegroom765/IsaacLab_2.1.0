@@ -48,7 +48,8 @@ import os
 import torch
 from datetime import datetime
 
-from rsl_rl.runners import OnPolicyRunner
+from rsl_rl.runners import Runner # OnPolicyRunner
+from rsl_rl.algorithms import *
 
 from omni.isaac.lab.envs import ManagerBasedRLEnvCfg
 from omni.isaac.lab.utils.dict import print_dict
@@ -105,11 +106,15 @@ def main():
 
     # create agent and runner from rsl-rl
     # runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
+    print(f"**agent_cfg.to_dict()['algorithm']: {agent_cfg.to_dict()['algorithm']}")
+    print(f"**agent_cfg.to_dict()['policy']: {agent_cfg.to_dict()['policy']}")
     agent: Agent = DPPO(env, device=agent_cfg.device, **agent_cfg.to_dict()["algorithm"], **agent_cfg.to_dict()["policy"])
     runner = Runner(env, agent, log_dir=log_dir, device=agent_cfg.device)
 
+    experiment_name = agent_cfg.experiment_name
+
     # TODO: Figure out what this does...
-    runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{DPPO.__name__}_{env_name}", **kwargs)]
+    runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{DPPO.__name__}_{experiment_name}", **kwargs)]
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir
@@ -130,7 +135,7 @@ def main():
     dump_pickle(os.path.join(log_dir, "params", "agent.pkl"), agent_cfg)
 
     # run training
-    runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+    runner.learn(iterations=agent_cfg.max_iterations)
 
     # close the simulator
     env.close()
