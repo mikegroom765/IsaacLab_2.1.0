@@ -170,6 +170,7 @@ class ObservationsCfg:
         joint_vel = ObsTerm(func=mdp.joint_vel_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         ee_pose_command = ObsTerm(func=mdp.generated_commands, params={"command_name": "ee_pose"})
         current_ee_pos = ObsTerm(func=mdp.ee_pos, noise=Unoise(n_min=-0.01, n_max=0.01))
+        current_ee_quat = ObsTerm(func=mdp.ee_quat, params={"make_quat_unique": True}, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
 
         # TODO: Add global pose (odom) to the observation space - I'm pretty sure this is joint_pos[0:2] since the robot uses dummy joints?
