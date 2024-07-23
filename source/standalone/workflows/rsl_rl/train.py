@@ -108,13 +108,13 @@ def main():
     # runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
     print(f"**agent_cfg.to_dict()['algorithm']: {agent_cfg.to_dict()['algorithm']}")
     print(f"**agent_cfg.to_dict()['policy']: {agent_cfg.to_dict()['policy']}")
-    agent: Agent = DPPO(env, device=agent_cfg.device, **agent_cfg.to_dict()["algorithm"], **agent_cfg.to_dict()["policy"])
+    agent: Agent = DPPOMulti(env, device=agent_cfg.device, **agent_cfg.to_dict()["algorithm"], **agent_cfg.to_dict()["policy"])
     runner = Runner(env, agent, log_dir=log_dir, device=agent_cfg.device)
 
     experiment_name = agent_cfg.experiment_name
 
     # TODO: Figure out what this does...
-    runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{DPPO.__name__}_{experiment_name}", **kwargs)]
+    runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{DPPOMulti.__name__}_{experiment_name}", **kwargs)]
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir

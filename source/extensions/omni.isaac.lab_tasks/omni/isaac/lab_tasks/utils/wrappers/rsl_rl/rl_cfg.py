@@ -188,7 +188,6 @@ class RslRlDppoActorCriticCfg:
     critic_activations: list[str] = MISSING
     """The activation functions for the critic network. Add "linear" for the last layer."""
 
-
 @configclass
 class RslRlDppoAlgorithmCfg:
     """Configuration for the DPPO algorithm."""
@@ -264,6 +263,31 @@ class RslRlDppoAlgorithmCfg:
 
     gradient_clip: float = MISSING
     """The maximum gradient norm."""
+
+@configclass
+class RslRlDppoMultiInputAlgorithmCfg(RslRlDppoActorCriticCfg):
+    """Configuration for the DPPO multi-input networks."""
+
+    lidar_encode: bool = True
+    """Whether to encode the lidar input."""
+
+    lidar_encode_output_dim: int = 64
+    """The output dimensions of the lidar encoder."""
+
+    lidar_encode_conv_channels: list[int] = [32, 64, 64]
+    """The number of output channels for each convolutional layer of the lidar encoder."""
+
+    lidar_encode_conv_kernels: list[int] = [3, 3, 3]
+    """The kernel size for each convolutional layer of the lidar encoder."""
+
+    lidar_encode_conv_strides: list[int] = [4, 2, 1]
+    """The stride for each convolutional layer of the lidar encoder."""
+
+    lidar_encode_conv_paddings: list[int] = [0, 0, 0]
+    """The padding for each convolutional layer of the lidar encoder."""
+
+    lidar_encode_conv_activations: list[str] = ["relu", "relu", "relu"]
+    """The activation function for each convolutional layer of the lidar encoder."""
 
 @configclass
 class RslRlRunnerCfg:

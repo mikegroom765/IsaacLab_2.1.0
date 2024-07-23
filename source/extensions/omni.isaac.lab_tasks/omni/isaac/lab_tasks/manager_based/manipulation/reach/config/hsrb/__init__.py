@@ -67,6 +67,31 @@ gym.register(
     },
 )
 
+
+gym.register(
+    id="Isaac-Reach-HSRB-DPPOMulti-v0",
+    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": joint_pos_env_cfg.HSRBReachEnvCfg,
+        "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_cfg:HSRBReachDPPOMultiInputRunnerCfg",
+        "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
+    },
+)
+
+gym.register(
+    id="Isaac-Reach-HSRB-DPPOMulti-Play-v0",
+    entry_point="omni.isaac.lab.envs:ManagerBasedRLEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": joint_pos_env_cfg.HSRBReachEnvCfg_PLAY,
+        "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_cfg:HSRBReachDPPOMultiInputRunnerCfg",
+        "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
+    },
+)
+
 ##
 # Inverse Kinematics - Absolute Pose Control
 ##
