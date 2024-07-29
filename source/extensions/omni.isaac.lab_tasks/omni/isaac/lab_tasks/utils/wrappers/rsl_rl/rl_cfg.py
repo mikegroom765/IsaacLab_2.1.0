@@ -289,6 +289,11 @@ class RslRlDppoMultiInputAlgorithmCfg(RslRlDppoActorCriticCfg):
     lidar_encode_conv_activations: list[str] = ["relu", "relu", "relu"]
     """The activation function for each convolutional layer of the lidar encoder."""
 
+    recurrent: bool = True
+    """Whether to use a recurrent network."""
+
+    # TODO: Add more parameters relevent to the recurrent module.
+
 @configclass
 class RslRlRunnerCfg:
     """Configuration of the runner for on-policy algorithms."""

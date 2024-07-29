@@ -73,6 +73,7 @@ def main():
     )
     agent_cfg: RslRlRunnerCfg = cli_args.parse_rsl_rl_cfg(args_cli.task, args_cli)
     print(f"[INFO] Agent configuration: {agent_cfg}")
+    # print(f"[INFO] Environment configuration: {env_cfg}")
 
     # specify directory for logging experiments
     log_root_path = os.path.join("logs", "rsl_rl", agent_cfg.experiment_name)
@@ -115,6 +116,7 @@ def main():
 
     # TODO: Figure out what this does...
     runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{DPPOMulti.__name__}_{experiment_name}", **kwargs)]
+    # print(f"[INFO] train kwargs: {**kwargs}")
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
     # save resume path before creating a new log_dir
