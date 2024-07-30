@@ -303,6 +303,33 @@ class RslRlDppoMultiInputAlgorithmCfg(RslRlDppoActorCriticCfg):
 
     # TODO: Add more parameters relevent to the recurrent module.
 
+    depth_encode: bool = True
+    """Whether to encode the depth input."""
+
+    depth_encode_output_dim: int = 64
+    """The output dimensions of the depth encoder."""
+
+    depth_encode_conv_channels: list[int] = [32, 64]
+    """The number of output channels for each convolutional layer of the depth encoder."""
+
+    depth_encode_conv_kernels: list[int] = [5, 3]
+    """The kernel size for each convolutional layer of the depth encoder."""
+
+    depth_encode_conv_strides: list[int] = [1, 1]
+    """The stride for each convolutional layer of the depth encoder."""
+
+    depth_encode_conv_paddings: list[int] = [0, 0]
+    """The padding for each convolutional layer of the depth encoder."""
+
+    depth_encode_conv_activations: list[str] = ["relu", "relu", "relu"]
+    """The activation function for each convolutional layer of the depth encoder."""
+
+    depth_encode_max_pool_kernels: list[int] = [2, 2]
+    """The kernel size for the max pooling layer of the depth encoder."""
+
+    depth_encode_max_pool_strides: list[int] = [2, 2]
+    """The stride for the max pooling layer of the depth encoder."""
+
 @configclass
 class RslRlRunnerCfg:
     """Configuration of the runner for on-policy algorithms."""
