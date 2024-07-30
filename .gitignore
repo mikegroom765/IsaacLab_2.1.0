@@ -71,3 +71,8 @@ logs
 
 # ignore docs
 docs
+
+# .pyc files
+*.pyc
+*.py[cod]
+**/__pycache__/
