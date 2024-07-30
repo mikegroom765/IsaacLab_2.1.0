@@ -197,7 +197,7 @@ class ObservationsCfg:
         """Observations for policy group."""
 
         depth_camera = ObsTerm(
-            func=mdp.depth_camera,
+            func=mdp.depth_camera_points,
             params={"sensor_cfg": SceneEntityCfg("depth_camera"), "asset_cfg": SceneEntityCfg("robot")},
             noise=Unoise(n_min=-0.1, n_max=0.1),
             # clip=(-1.0, 1.0),

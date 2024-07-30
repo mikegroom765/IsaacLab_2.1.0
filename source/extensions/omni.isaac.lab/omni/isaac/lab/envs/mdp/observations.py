@@ -182,7 +182,7 @@ def lidar_2d_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg) -> torch.Ten
     distance = torch.where(distance > max_distance, torch.tensor(max_distance), distance)
     return distance
 
-def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+def depth_camera_points(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """3D point cloud from the given depth camera sensor w.r.t. the robot base frame.
     """
     # extract the used quantities (to enable type-hinting)
@@ -199,6 +199,29 @@ def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: Sc
     zeros = torch.zeros(points_b.shape).to("cuda")
     points_b = torch.where(torch.norm(points_w - sensor.data.pos_w[:, None, :3], dim=-1, keepdim=True).expand_as(points_b) > max_distance, zeros, points_b)
     return points_b
+
+def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Depth image from the given depth camera sensor
+    """
+    # extract the used quantities (to enable type-hinting)
+    sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
+    points_w = sensor.data.ray_hits_w
+    # calculate the depth from the sensor to the hit points
+    p_WR_W = points_w
+    p_WC_W = sensor.data.pos_w
+    R_WC = sensor.data.rot_w
+
+    p_CR_W = -p_WC_W + p_WR_W
+    R_CW = math_utils.quat_inv(R_WC)
+
+    # TODO: might need to pack points into width x height if not already
+    p_CR_C = math_utils.quat_rotate(R_CW, p_CR_W)
+    depth = p_CR_C[..., 2]
+
+    # if the depth is greater than the max distance, set it to the max distance
+    max_distance = sensor.cfg.max_distance
+    depth = torch.where(depth > sensor.cfg.max_distance, max_distance, depth)
+    return depth
 
 def body_incoming_wrench(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
     """Incoming spatial wrench on bodies of an articulation in the simulation world frame.
