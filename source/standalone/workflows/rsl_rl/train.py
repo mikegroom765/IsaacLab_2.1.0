@@ -66,6 +66,13 @@ torch.backends.cudnn.benchmark = False
 
 
 def main():
+
+    algorithms = {
+        'PPO': PPO,
+        'DPPO': DPPO,
+        'DPPOMulti': DPPOMulti,
+    }
+
     """Train with RSL-RL agent."""
     # parse configuration
     env_cfg: ManagerBasedRLEnvCfg = parse_env_cfg(
@@ -107,15 +114,27 @@ def main():
 
     # create agent and runner from rsl-rl
     # runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=log_dir, device=agent_cfg.device)
-    print(f"**agent_cfg.to_dict()['algorithm']: {agent_cfg.to_dict()['algorithm']}")
-    print(f"**agent_cfg.to_dict()['policy']: {agent_cfg.to_dict()['policy']}")
-    agent: Agent = DPPOMulti(env, device=agent_cfg.device, **agent_cfg.to_dict()["algorithm"], **agent_cfg.to_dict()["policy"])
+    # print(f"**agent_cfg.to_dict()['algorithm']: {agent_cfg.to_dict()['algorithm']}")
+    # print(f"**agent_cfg.to_dict()['policy']: {agent_cfg.to_dict()['policy']}")
+
+    algorithm = algorithms[agent_cfg.to_dict()["algorithm"]['class_name']]
+    print(type(algorithm))
+    # remove the class_name key from the dictionary
+    algorithm_dict = agent_cfg.to_dict()["algorithm"]
+    policy_dict = agent_cfg.to_dict()["policy"]
+    del policy_dict['class_name']
+    del algorithm_dict['class_name']
+
+    print(f"[INFO] algorithm_dict: {algorithm_dict}")
+    print(f"[INFO] policy_dict: {policy_dict}")
+
+    agent: Agent = algorithm(env, device=agent_cfg.device, **algorithm_dict, **policy_dict)
     runner = Runner(env, agent, log_dir=log_dir, device=agent_cfg.device)
 
     experiment_name = agent_cfg.experiment_name
 
     # TODO: Figure out what this does...
-    runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{DPPOMulti.__name__}_{experiment_name}", **kwargs)]
+    runner._learn_cb = [lambda *args, **kwargs: Runner._log(*args, prefix=f"{algorithm.__name__}_{experiment_name}", **kwargs)]
     # print(f"[INFO] train kwargs: {**kwargs}")
     # write git state to logs
     runner.add_git_repo_to_log(__file__)
