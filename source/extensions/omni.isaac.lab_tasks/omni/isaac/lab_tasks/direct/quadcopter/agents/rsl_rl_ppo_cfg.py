@@ -20,22 +20,23 @@ class QuadcopterPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     experiment_name = "quadcopter_direct"
     empirical_normalization = False
     policy = RslRlPpoActorCriticCfg(
-        init_noise_std=1.0,
+        actor_noise_std=1.0,
         actor_hidden_dims=[64, 64],
         critic_hidden_dims=[64, 64],
-        activation="elu",
+        actor_activations=["tanh", "tanh", "tanh", "tanh"],
+        critic_activations=["tanh", "tanh", "tanh"],
     )
     algorithm = RslRlPpoAlgorithmCfg(
-        value_loss_coef=1.0,
-        use_clipped_value_loss=True,
-        clip_param=0.2,
-        entropy_coef=0.0,
-        num_learning_epochs=5,
-        num_mini_batches=4,
+        value_coeff=1.0,
+        # use_clipped_value_loss=True,
+        clip_ratio=0.2,
+        entropy_coeff=0.0,
+        # num_learning_epochs=5,
+        batch_count=4,
         learning_rate=5.0e-4,
         schedule="adaptive",
         gamma=0.99,
-        lam=0.95,
-        desired_kl=0.01,
-        max_grad_norm=1.0,
+        gae_lambda=0.95,
+        target_kl=0.01,
+        gradient_clip=1.0,
     )

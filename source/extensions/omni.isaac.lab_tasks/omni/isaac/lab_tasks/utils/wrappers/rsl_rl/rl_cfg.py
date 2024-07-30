@@ -16,7 +16,7 @@ class RslRlPpoActorCriticCfg:
     class_name: str = "ActorCritic"
     """The policy class name. Default is ActorCritic."""
 
-    init_noise_std: float = MISSING
+    actor_noise_std: float = MISSING
     """The initial noise standard deviation for the policy."""
 
     actor_hidden_dims: list[int] = MISSING
@@ -25,8 +25,12 @@ class RslRlPpoActorCriticCfg:
     critic_hidden_dims: list[int] = MISSING
     """The hidden dimensions of the critic network."""
 
-    activation: str = MISSING
-    """The activation function for the actor and critic networks."""
+    actor_activations: list[str] = MISSING
+    """The activation functions for the actor network. Add "linear" for the last layer."""
+
+    critic_activations: list[str] = MISSING
+    """The activation functions for the critic network. Add "linear" for the last layer."""
+
 
 @configclass
 class RslRlPpoActorCriticCustomCfg(RslRlPpoActorCriticCfg):
@@ -35,7 +39,7 @@ class RslRlPpoActorCriticCustomCfg(RslRlPpoActorCriticCfg):
     class_name: str = "ActorCriticCustom"
     """The policy class name. Default is ActorCriticCustom."""
 
-    init_noise_std: float = MISSING
+    actor_noise_std: float = MISSING
 
     lidar_input_hidden_dims: list[int] = MISSING
 
@@ -45,7 +49,12 @@ class RslRlPpoActorCriticCustomCfg(RslRlPpoActorCriticCfg):
 
     critic_hidden_dims: list[int] = MISSING
 
-    activation: str = MISSING
+    actor_activations: list[str] = MISSING
+    """The activation functions for the actor network. Add "linear" for the last layer."""
+
+    critic_activations: list[str] = MISSING
+    """The activation functions for the critic network. Add "linear" for the last layer."""
+
 
 @configclass
 class RslRlPpoAlgorithmCfg:
@@ -54,22 +63,22 @@ class RslRlPpoAlgorithmCfg:
     class_name: str = "PPO"
     """The algorithm class name. Default is PPO."""
 
-    value_loss_coef: float = MISSING
+    value_coeff: float = MISSING
     """The coefficient for the value loss."""
 
-    use_clipped_value_loss: bool = MISSING
-    """Whether to use clipped value loss."""
+    # use_clipped_value_loss: bool = MISSING
+    # """Whether to use clipped value loss."""
 
-    clip_param: float = MISSING
+    clip_ratio: float = MISSING
     """The clipping parameter for the policy."""
 
-    entropy_coef: float = MISSING
+    entropy_coeff: float = MISSING
     """The coefficient for the entropy loss."""
 
-    num_learning_epochs: int = MISSING
-    """The number of learning epochs per update."""
+    # num_learning_epochs: int = MISSING
+    # """The number of learning epochs per update."""
 
-    num_mini_batches: int = MISSING
+    batch_count: int = MISSING
     """The number of mini-batches per update."""
 
     learning_rate: float = MISSING
@@ -81,13 +90,13 @@ class RslRlPpoAlgorithmCfg:
     gamma: float = MISSING
     """The discount factor."""
 
-    lam: float = MISSING
+    gae_lambda: float = MISSING
     """The lambda parameter for Generalized Advantage Estimation (GAE)."""
 
-    desired_kl: float = MISSING
+    target_kl: float = MISSING
     """The desired KL divergence."""
 
-    max_grad_norm: float = MISSING
+    gradient_clip: float = MISSING
     """The maximum gradient norm."""
 
 
@@ -170,8 +179,8 @@ class RslRlOnPolicyRunnerCfg:
 class RslRlDppoActorCriticCfg:
     """Configuration for the DPPO actor-critic networks."""
 
-    # class_name: str = "ActorCritic"
-    # """The policy class name. Default is ActorCritic."""
+    class_name: str = "ActorCritic"
+    """The policy class name. Default is ActorCritic."""
 
     actor_noise_std: float = MISSING
     """The initial noise standard deviation for the policy."""
@@ -192,8 +201,8 @@ class RslRlDppoActorCriticCfg:
 class RslRlDppoAlgorithmCfg:
     """Configuration for the DPPO algorithm."""
 
-    # class_name: str = "DPPO"
-    # """The algorithm class name. Default is DPPO."""
+    class_name: str = "DPPO"
+    """The algorithm class name. Default is DPPO."""
 
     critic_network: str = "qrdqn"
     """The critic network to use. Default is qrdqn."""
