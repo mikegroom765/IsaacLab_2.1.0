@@ -74,6 +74,10 @@ class RslRlVecEnvWrapper(VecEnv):
             self.num_actions = self.unwrapped.num_actions
         if hasattr(self.unwrapped, "observation_manager"):
             self.num_obs = self.unwrapped.observation_manager.group_obs_dim["policy"][0]
+            # check if depth is present
+            if "depth" in self.unwrapped.observation_manager.group_obs_dim.keys():
+                self.num_obs += (self.unwrapped.observation_manager.group_obs_dim["depth"][0] * self.unwrapped.observation_manager.group_obs_dim["depth"][1])
+                
         else:
             self.num_obs = self.unwrapped.num_observations
         # -- privileged observations
