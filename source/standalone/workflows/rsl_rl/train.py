@@ -118,7 +118,6 @@ def main():
     # print(f"**agent_cfg.to_dict()['policy']: {agent_cfg.to_dict()['policy']}")
 
     algorithm = algorithms[agent_cfg.to_dict()["algorithm"]['class_name']]
-    print(type(algorithm))
     # remove the class_name key from the dictionary
     algorithm_dict = agent_cfg.to_dict()["algorithm"]
     policy_dict = agent_cfg.to_dict()["policy"]
@@ -128,8 +127,12 @@ def main():
     print(f"[INFO] algorithm_dict: {algorithm_dict}")
     print(f"[INFO] policy_dict: {policy_dict}")
 
+    kwargs = agent_cfg.to_dict()
+    kwargs.pop("policy")
+    kwargs.pop("device")
+
     agent: Agent = algorithm(env, device=agent_cfg.device, **algorithm_dict, **policy_dict)
-    runner = Runner(env, agent, log_dir=log_dir, device=agent_cfg.device)
+    runner = Runner(env, agent, log_dir=log_dir, device=agent_cfg.device, **kwargs)
 
     experiment_name = agent_cfg.experiment_name
 
