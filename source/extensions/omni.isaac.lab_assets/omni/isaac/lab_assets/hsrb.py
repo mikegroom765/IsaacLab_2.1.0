@@ -23,7 +23,8 @@ import torch
 
 HSRB_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s.usd", 
+        # usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s.usd",
+        usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s_no_pan_tilt.usd",
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
             solver_position_iteration_count=4,
@@ -44,9 +45,9 @@ HSRB_CFG = ArticulationCfg(
             "hand_l_proximal_joint": 0.75,
             "hand_r_proximal_joint": 0.75,
             "joint_rz": 0.0,
-            "head_pan_joint": 0.0,
+            # "head_pan_joint": 0.0,
             "joint_y": 0.0,
-            "head_tilt_joint": 0.0,
+            # "head_tilt_joint": -0.79,
             "joint_x": 0.0,            
         },
     ),
@@ -129,6 +130,7 @@ HSRB_LIDAR_CFG = HOKUYO_UST_20LX_RAYCASTER_CFG.replace(
     offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0, 1.0)),
     prim_path="{ENV_REGEX_NS}/Robot/base_range_sensor_link",
     mesh_prim_paths=["/World/ground"],
+    debug_vis=False,
 )
 """Configuration of the HSRB's Hokuyo UST-20LX lidar sensor."""
 
@@ -150,8 +152,8 @@ HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
     spawn=sim_utils.PinholeCameraCfg(
         focal_length=24.0, focus_distance=400.0, horizontal_aperture=58, clipping_range=(0.1, 10.0)
     ),
-    width=640,
-    height=480,
+    width=64,
+    height=48,
 )
 
 """Configuration of the HSRB's depth camera sensor, implemented as a tiled camera."""

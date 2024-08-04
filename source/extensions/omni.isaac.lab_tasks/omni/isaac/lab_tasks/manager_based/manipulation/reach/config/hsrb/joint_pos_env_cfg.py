@@ -47,14 +47,14 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
             asset_name="robot", joint_names=["joint_x", "joint_y", "joint_rz"], use_default_offset=True, scale=1.0, debug_vis=True
         )
         self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
-            asset_name="robot", 
+            asset_name="robot",
             joint_names=["hand_l_proximal_joint", "hand_r_proximal_joint"], 
             open_command_expr={"hand_l_proximal_joint": 1.2, "hand_r_proximal_joint": 1.2}, # 0.75 # revolute joint in articulation has a limit of 1.24 radians (71 degrees)
             close_command_expr={"hand_l_proximal_joint": 0.0, "hand_r_proximal_joint": 0.0}
         )
-        self.actions.head_action = mdp.RelativeJointPositionActionCfg(
-            asset_name="robot", joint_names=["head_pan_joint", "head_tilt_joint"], scale=1.0, debug_vis=True
-        )
+        # self.actions.head_action = mdp.RelativeJointPositionActionCfg(
+        #     asset_name="robot", joint_names=["head_pan_joint", "head_tilt_joint"], scale=1.0, debug_vis=True
+        # )
         # override command generator body
         # end-effector is along z-direction
         # self.commands.ee_pose.body_name = "base_footprint"
@@ -72,7 +72,7 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         # Listen for the required transforms (end-effector)
         self.scene.ee_frame = FrameTransformerCfg(
             prim_path="{ENV_REGEX_NS}/Robot/base_link",
-            debug_vis=True,
+            debug_vis=False,
             visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/EndEffectorFrameTransformer"),
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
@@ -104,8 +104,19 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.scene.lidar = HSRB_LIDAR_CFG.copy()
 
         # add depth camera
-        self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
-        # self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
+        # self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
+        self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
+
+        if self.scene.depth_camera_tiled is None:
+            # for some reason the tiled depth camera spawn their own lights?
+            self.scene.sky_light = AssetBaseCfg(
+                prim_path="/World/skyLight",
+                spawn=sim_utils.DomeLightCfg(
+                    intensity=750.0,
+                    texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
+                ),
+            )
+                
 
         self.commands.ee_pose = mdp.UniformPoseCommandCfg(
             asset_name="robot",

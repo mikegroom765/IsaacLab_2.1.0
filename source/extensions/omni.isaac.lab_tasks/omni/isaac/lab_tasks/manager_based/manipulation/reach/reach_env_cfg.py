@@ -92,13 +92,7 @@ class HSRBReachSceneCfg(InteractiveSceneCfg):
     robot: ArticulationCfg = MISSING
 
     # lights
-    sky_light = AssetBaseCfg(
-        prim_path="/World/skyLight",
-        spawn=sim_utils.DomeLightCfg(
-            intensity=750.0,
-            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
-        ),
-    )
+    sky_light: AssetBaseCfg | None = None 
 
     # frame transformers
     ee_frame: FrameTransformerCfg = MISSING
@@ -196,9 +190,9 @@ class ObservationsCfg:
     class DepthCfg(ObsGroup):
         """Observations for policy group."""
 
-        depth_camera = ObsTerm(
-            func=mdp.depth_camera_points,
-            params={"sensor_cfg": SceneEntityCfg("depth_camera"), "asset_cfg": SceneEntityCfg("robot")},
+        depth_camera_tiled = ObsTerm(
+            func=mdp.tiled_depth_camera,
+            params={"sensor_cfg": SceneEntityCfg("depth_camera_tiled")}, # , "asset_cfg": SceneEntityCfg("robot")
             noise=Unoise(n_min=-0.1, n_max=0.1),
             # clip=(-1.0, 1.0),
         )
@@ -310,7 +304,7 @@ class RewardsCfg:
     # is goal in camera view - use when not using tiled camera
     is_goal_in_camera_view = RewTerm(
         func=mdp.is_goal_in_camera_view_frame,
-        weight=0.1,
+        weight=1.0,
         params={"camera_name": "depth_camera", "goal_name": "ee_pose", "camera_intrinsics": MISSING}, 
     )
 
@@ -318,55 +312,55 @@ class RewardsCfg:
     #### Base ####
     contact_penalty_base_b_bumper = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_b_bumper_contact_force", body_names=[".*"]), "asset_cfg": SceneEntityCfg("robot"), "link_name": "base_link"},
     )
     contact_penalty_base_f_bumper = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("base_f_bumper_contact_force", body_names=[".*"]), "asset_cfg": SceneEntityCfg("robot"), "link_name": "base_link"},
     )
     #### Arm ####
     contact_penalty_arm_flex = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_flex_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "arm_flex_link"},
     )
     contact_penalty_arm_roll = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("arm_roll_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "arm_roll_link"},
     )
     #### Wrist ####
     contact_penalty_wrist_roll = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("wrist_roll_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "wrist_roll_link"},
     )
     #### (Self-collisions) Gripper ####
     contact_penalty_self_gripper_hand_palm_link = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_palm_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_palm_link"},
     )
     contact_penalty_self_gripper_hand_l_spring_proximal_link = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_spring_proximal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_spring_proximal_link"},
     )
     contact_penalty_self_gripper_hand_r_spring_proximal_link = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_spring_proximal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_r_spring_proximal_link"},
     )
     contact_penalty_self_gripper_hand_l_distal_link = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_l_distal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_l_distal_link"},
     )
     contact_penalty_self_gripper_hand_r_distal_link = RewTerm(
         func=mdp.contact_penalty_velocity_scaled,
-        weight=1.0,
+        weight=0.001,
         params={"threshold": 1.0, "sensor_cfg": SceneEntityCfg("self_gripper_hand_r_distal_link_contact_force"), "asset_cfg": SceneEntityCfg("robot"), "link_name": "hand_r_distal_link"},
     )
     contact_penalty_self_gripper_hand_l_finger_vacuum_frame = RewTerm(

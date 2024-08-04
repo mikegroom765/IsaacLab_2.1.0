@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 import omni.isaac.lab.utils.math as math_utils
 from omni.isaac.lab.assets import Articulation, RigidObject
 from omni.isaac.lab.managers import SceneEntityCfg
-from omni.isaac.lab.sensors import RayCaster
+from omni.isaac.lab.sensors import RayCaster, TiledCamera
 
 if TYPE_CHECKING:
     from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedRLEnv
@@ -182,6 +182,20 @@ def lidar_2d_scan(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg) -> torch.Ten
     distance = torch.where(distance > max_distance, torch.tensor(max_distance), distance)
     return distance
 
+def tiled_depth_camera(env: ManagerBasedEnv, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
+    """Depth image from the given tiled depth camera sensor
+    """
+    # extract the used quantities (to enable type-hinting)
+    sensor: TiledCamera = env.scene.sensors[sensor_cfg.name]
+    # check if the sensor has depth data type
+    if "depth" not in sensor.cfg.data_types:
+        raise ValueError("The sensor does not have depth data type.")
+    # get the depth data
+    depth = sensor.data.output["depth"]
+    # reshape from (num_cameras, height, width, channels) to (num_cameras, channels, height, width)
+    depth = depth.permute(0, 3, 1, 2)
+    return depth
+
 def depth_camera_points(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """3D point cloud from the given depth camera sensor w.r.t. the robot base frame.
     """
@@ -202,25 +216,57 @@ def depth_camera_points(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_
 
 def depth_camera(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
     """Depth image from the given depth camera sensor
+    NOT TESTED YET...
     """
     # extract the used quantities (to enable type-hinting)
     sensor: RayCaster = env.scene.sensors[sensor_cfg.name]
     points_w = sensor.data.ray_hits_w
     # calculate the depth from the sensor to the hit points
-    p_WR_W = points_w
-    p_WC_W = sensor.data.pos_w
-    R_WC = sensor.data.rot_w
+    p_WR_W = points_w # position of the hit points in world frame
+    p_WC_W = sensor.data.pos_w # position of the camera in world frame
+    R_WC = sensor.data.quat_w # quaternion of the camera in world frame
 
-    p_CR_W = -p_WC_W + p_WR_W
-    R_CW = math_utils.quat_inv(R_WC)
+    # print(f"p_WR_W shape: {p_WR_W.shape}")
+    # print(f"p_WC_W shape: {p_WC_W.shape}")
+    # print(f"p_WC_W.expand_as(p_WR_W) shape: {p_WC_W.unsqueeze(1).expand_as(p_WR_W).shape}")
 
-    # TODO: might need to pack points into width x height if not already
-    p_CR_C = math_utils.quat_rotate(R_CW, p_CR_W)
+    # subtract the position of the camera from the position of the hit points
+    # p_WR_W.shape = (batch_size, num_points, 3)
+    # p_WC_W.shape = (batch_size, 3)
+
+    # print(f"p_WC_W: {p_WC_W}")
+    # print(f"p_WC_W[:, None, :]: {p_WC_W[:, None, :]}")
+    # print(f"p_WC_W[:, None, :].shape: {p_WC_W[:, None, :].shape}")
+    
+    p_CR_W = -p_WC_W[:, None, :] + p_WR_W # position of the hit points relative to the camera frame in world frame
+
+    # print(f"p_CR_W: {p_CR_W}")
+
+    # p_CR_W = -p_WC_W + p_WR_W
+    R_CW = math_utils.quat_inv(R_WC) # quaternion of the world frame in camera frame
+
+    # p_CR_C = math_utils.quat_rotate(R_CW, p_CR_W)
+
+    p_CR_C = math_utils.transform_points(p_CR_W, None, R_CW) # points in camera frame
+    # p_CR_C_test = math_utils.transform_points(p_WC_W, , R_CW) # points in camera frame
+
     depth = p_CR_C[..., 2]
 
     # if the depth is greater than the max distance, set it to the max distance
     max_distance = sensor.cfg.max_distance
+    # print(f"STILL NEED TO TEST IF DEPTH IS DONE CORRECTLY")
+    grid_size = sensor.cfg.pattern_cfg.size
+    resolution = sensor.cfg.pattern_cfg.resolution
+    width = round(((grid_size[0] + resolution) / resolution))
+    height = round(((grid_size[1] + resolution) / resolution))
     depth = torch.where(depth > sensor.cfg.max_distance, max_distance, depth)
+
+    # reshape to height x width
+    depth = depth.view(-1, height, width)
+
+    # print(f"depth: {depth}")
+    # print(f"depth shape: {depth.shape}")
+
     return depth
 
 def body_incoming_wrench(env: ManagerBasedEnv, asset_cfg: SceneEntityCfg) -> torch.Tensor:
