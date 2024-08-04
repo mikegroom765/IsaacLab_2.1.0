@@ -16,6 +16,8 @@ from omni.isaac.lab_tasks.utils.wrappers.rsl_rl import (
     RslRlDppoMultiInputAlgorithmCfg,
 )
 
+from rsl_rl.modules import QuantileNetwork
+
 
 @configclass
 class HSRBReachPPORunnerCfg(RslRlOnPolicyRunnerCfg):
@@ -81,8 +83,8 @@ class HSRBReachDPPORunnerCfg(RslRlRunnerCfg):
         value_lambda=0.95,
         value_loss="quantile_l1",
         value_loss_kwargs={},
-        value_measure=None,
-        value_measure_adaptation=None,
+        value_measure=QuantileNetwork.measure_wang,
+        value_measure_adaptation=(49,),
         value_measure_kwargs={},
     )
 
@@ -137,7 +139,7 @@ class HSRBReachDPPOMultiInputRunnerCfg(RslRlRunnerCfg):
         value_lambda=0.95,
         value_loss="quantile_l1",
         value_loss_kwargs={},
-        value_measure=None,
-        value_measure_adaptation=None,
+        value_measure=QuantileNetwork.measure_wang,
+        value_measure_adaptation=(49,),
         value_measure_kwargs={},
     )

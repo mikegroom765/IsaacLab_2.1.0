@@ -133,6 +133,11 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
             ),
         )
 
+        self.commands.risk_sensitivity = mdp.ScalarValueCommandCfg(
+            value_range=(-1.0, 1.0),
+            resampling_time_range=(10.0, 20.0),
+        )
+
         #### Contact sensors ####
 
         robot_base_prim_paths = [

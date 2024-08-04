@@ -13,6 +13,7 @@ from .null_command import NullCommand
 from .pose_2d_command import TerrainBasedPose2dCommand, UniformPose2dCommand
 from .pose_command import UniformPoseCommand
 from .velocity_command import NormalVelocityCommand, UniformVelocityCommand
+from .scalar_value import ScalarValueCommand
 
 
 @configclass
@@ -26,6 +27,15 @@ class NullCommandCfg(CommandTermCfg):
         # set the resampling time range to infinity to avoid resampling
         self.resampling_time_range = (math.inf, math.inf)
 
+
+@configclass
+class ScalarValueCommandCfg(CommandTermCfg):
+    """Configuration for the scalar value command generator."""
+
+    class_type: type = ScalarValueCommand
+
+    value_range: tuple[float, float] = MISSING # min max
+    """Range for the scalar value to be uniformly sampled from."""
 
 @configclass
 class UniformVelocityCommandCfg(CommandTermCfg):

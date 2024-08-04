@@ -141,6 +141,11 @@ class CommandsCfg:
         ),
     )
 
+    risk_sensitivity = mdp.ScalarValueCommandCfg(
+        value_range=(-1.0, 1.0),
+        resampling_time_range=(10.0, 20.0),
+    )
+
 
 @configclass
 class ActionsCfg:
@@ -166,8 +171,12 @@ class ObservationsCfg:
         current_ee_pos = ObsTerm(func=mdp.ee_pos, noise=Unoise(n_min=-0.01, n_max=0.01))
         current_ee_quat = ObsTerm(func=mdp.ee_quat, params={"make_quat_unique": True}, noise=Unoise(n_min=-0.01, n_max=0.01))
         actions = ObsTerm(func=mdp.last_action)
+        # if anymore observations are added, add them below risk_sensitivity, otherwise you will need to change 
+        # the value_measure_adaptation term in the rsl_rl_cfg.py file (HSRBReachDPPOMultiInputRunnerCfg)
+        risk_sensitivity = ObsTerm(func=mdp.generated_commands, params={"command_name": "risk_sensitivity"})
 
         # TODO: Add global pose (odom) to the observation space - I'm pretty sure this is joint_pos[0:2] since the robot uses dummy joints?
+        # pass ee_pose_command in the robot ee frame?
 
         lidar_scan = ObsTerm(
             func=mdp.lidar_2d_scan,
