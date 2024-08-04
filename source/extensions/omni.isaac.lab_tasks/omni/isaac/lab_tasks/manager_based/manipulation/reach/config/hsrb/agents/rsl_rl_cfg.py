@@ -66,7 +66,7 @@ class HSRBReachDPPORunnerCfg(RslRlRunnerCfg):
         value_coeff=0.9,
         clip_ratio=0.2,
         entropy_coeff=0.006,
-        batch_count=16, #4096
+        batch_count=4, #4096
         learning_rate=1.0e-4,
         schedule="adaptive",
         gamma=0.98,
@@ -99,12 +99,14 @@ class HSRBReachDPPOMultiInputRunnerCfg(RslRlRunnerCfg):
         critic_hidden_dims=[256, 128, 64],
         actor_activations=["tanh", "tanh", "tanh", "tanh"],
         critic_activations=["tanh", "tanh", "tanh"],
+        lidar_encode=True,
         lidar_encode_conv_activations=["relu", "relu", "relu", "relu"],
         lidar_encode_conv_channels=[32, 64, 64],
         lidar_encode_conv_kernels=[3, 3, 3],
         lidar_encode_conv_strides=[4, 2, 1],
         lidar_encode_conv_paddings=[0, 0, 0],
         lidar_encode_output_dim=64,
+        depth_encode=False,
         depth_encode_conv_activations=["relu", "relu", "relu"],
         depth_encode_conv_channels=[32, 64],
         depth_encode_conv_kernels=[5, 3],
@@ -120,7 +122,7 @@ class HSRBReachDPPOMultiInputRunnerCfg(RslRlRunnerCfg):
         value_coeff=0.9,
         clip_ratio=0.2,
         entropy_coeff=0.006,
-        batch_count=16, #4096
+        batch_count=4, #4096
         learning_rate=1.0e-4,
         schedule="adaptive",
         gamma=0.98,
