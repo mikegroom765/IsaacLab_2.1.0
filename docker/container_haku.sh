@@ -13,12 +13,6 @@ tabs 4
 # get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-STATEFILE="${SCRIPT_DIR}/.container.yaml"
-
-if ! [ -f "$STATEFILE" ]; then
-    touch $STATEFILE
-fi
-
 #==
 # Functions
 #==
@@ -53,46 +47,6 @@ install_apptainer() {
         echo "[INFO] Exiting because apptainer was not installed"
         exit
     fi
-}
-
-install_yq() {
-    # Installing yq to handle file parsing
-    # Installation procedure from here: https://github.com/mikefarah/yq?tab=readme-ov-file#linux-via-snap
-    read -p "[INFO] Required 'yq' package could not be found. Would you like to install it via snap? (y/N)" yq_answer
-    if [ "$yq_answer" != "${yq_answer#[Yy]}" ]; then
-        sudo snap install yq
-    else
-        echo "[INFO] Exiting because yq was not installed"
-        exit
-    fi
-}
-
-set_statefile_variable() {
-    # Check if yq is installed
-    if ! command -v yq &> /dev/null; then
-        install_yq
-    fi
-    # Stores key $1 with value $2 in yaml $STATEFILE
-    yq -i '.["'"$1"'"] = "'"$2"'"' $STATEFILE
-}
-
-load_statefile_variable() {
-    # Check if yq is installed
-    if ! command -v yq &> /dev/null; then
-        install_yq
-    fi
-    # Loads key $1 from yaml $STATEFILE as an envvar
-    # If key does not exist, the loaded var will equal "null"
-    eval $1="$(yq ".$1" $STATEFILE)"
-}
-
-delete_statefile_variable() {
-    # Check if yq is installed
-    if ! command -v yq &> /dev/null; then
-        install_yq
-    fi
-    # Deletes key $1 from yaml $STATEFILE
-    yq -i "del(.$1)" $STATEFILE
 }
 
 # Function to check docker versions
@@ -175,74 +129,6 @@ check_singularity_image_exists() {
     fi
 }
 
-install_xauth() {
-    # check if xauth is installed
-    read -p "[INFO] xauth is not installed. Would you like to install it via apt? (y/N) " xauth_answer
-    if [ "$xauth_answer" != "${xauth_answer#[Yy]}" ]; then
-        sudo apt update && sudo apt install xauth
-    else
-        echo "[INFO] Did not install xauth. Full X11 forwarding not enabled."
-    fi
-}
-
-# This is modeled after Rocker's x11 forwarding extension
-# https://github.com/osrf/rocker
-configure_x11() {
-    if ! command -v xauth &> /dev/null; then
-        install_xauth
-    fi
-    load_statefile_variable __ISAACLAB_TMP_XAUTH
-    # Create temp .xauth file to be mounted in the container
-    if [ "$__ISAACLAB_TMP_XAUTH" = "null" ] || [ ! -f "$__ISAACLAB_TMP_XAUTH" ]; then
-        __ISAACLAB_TMP_XAUTH=$(mktemp --suffix=".xauth")
-        set_statefile_variable __ISAACLAB_TMP_XAUTH $__ISAACLAB_TMP_XAUTH
-        # Extract MIT-MAGIC-COOKIE for current display | Change the 'connection family' to FamilyWild (ffff) | merge into tmp .xauth file
-        # https://www.x.org/archive/X11R6.8.1/doc/Xsecurity.7.html#toc3
-        xauth_cookie= xauth nlist ${DISPLAY} | sed -e s/^..../ffff/ | xauth -f $__ISAACLAB_TMP_XAUTH nmerge -
-    fi
-    # Export here so it's an envvar for the called Docker commands
-    export __ISAACLAB_TMP_XAUTH
-    add_yamls="$add_yamls --file x11.yaml "
-    # TODO: Add check to make sure Xauth file is correct
-}
-
-x11_check() {
-    load_statefile_variable __ISAACLAB_X11_FORWARDING_ENABLED
-    if [ "$__ISAACLAB_X11_FORWARDING_ENABLED" = "null" ]; then
-        echo "[INFO] X11 forwarding from the Isaac Lab container is off by default."
-        echo "[INFO] It will fail if there is no display, or this script is being run via ssh without proper configuration."
-        read -p "Would you like to enable it? (y/N) " x11_answer
-        if [ "$x11_answer" != "${x11_answer#[Yy]}" ]; then
-            __ISAACLAB_X11_FORWARDING_ENABLED=1
-            set_statefile_variable __ISAACLAB_X11_FORWARDING_ENABLED 1
-            echo "[INFO] X11 forwarding is enabled from the container."
-        else
-            __ISAACLAB_X11_FORWARDING_ENABLED=0
-            set_statefile_variable __ISAACLAB_X11_FORWARDING_ENABLED 0
-            echo "[INFO] X11 forwarding is disabled from the container."
-        fi
-    else
-        echo "[INFO] X11 Forwarding is configured as $__ISAACLAB_X11_FORWARDING_ENABLED in .container.yaml"
-        if [ "$__ISAACLAB_X11_FORWARDING_ENABLED" = "1" ]; then
-            echo "[INFO] To disable X11 forwarding, set __ISAACLAB_X11_FORWARDING_ENABLED=0 in .container.yaml"
-        else
-            echo "[INFO] To enable X11 forwarding, set __ISAACLAB_X11_FORWARDING_ENABLED=1 in .container.yaml"
-        fi
-    fi
-
-    if [ "$__ISAACLAB_X11_FORWARDING_ENABLED" = "1" ]; then
-        configure_x11
-    fi
-}
-
-x11_cleanup() {
-    load_statefile_variable __ISAACLAB_TMP_XAUTH
-    if ! [ "$__ISAACLAB_TMP_XAUTH" = "null" ] && [ -f "$__ISAACLAB_TMP_XAUTH" ]; then
-        echo "[INFO] Removing temporary Isaac Lab .xauth file $__ISAACLAB_TMP_XAUTH."
-        rm $__ISAACLAB_TMP_XAUTH
-        delete_statefile_variable __ISAACLAB_TMP_XAUTH
-    fi
-}
 
 submit_job() {
 
@@ -311,11 +197,8 @@ case $mode in
     start)
         echo "[INFO] Building the docker image and starting the container michael-isaac-lab-$container_profile in the background..."
         pushd ${SCRIPT_DIR} > /dev/null 2>&1
-        # Determine if we want x11 forwarding enabled
-        x11_check
         # We have to build the base image as a separate step,
-        # in case we are building a profile which depends
-        # upon
+        # in case we are building a profile which depends upon
         docker compose --file docker-compose-haku.yaml --env-file .env.base build michael-isaac-lab-base
         docker compose $add_yamls $add_profiles $add_envs up --detach --build --remove-orphans
         popd > /dev/null 2>&1
