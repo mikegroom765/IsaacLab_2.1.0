@@ -200,6 +200,7 @@ case $mode in
         # We have to build the base image as a separate step,
         # in case we are building a profile which depends upon
         docker compose --file docker-compose-haku.yaml --env-file .env.base build michael-isaac-lab-base
+        docker compose --file docker-compose-haku.yaml --env-file .env.base build michael-isaac-lab-base-2
         docker compose $add_yamls $add_profiles $add_envs up --detach --build --remove-orphans
         popd > /dev/null 2>&1
         ;;

@@ -94,6 +94,28 @@ services:
     stdin_open: true
     tty: true
 
+  michael-isaac-lab-base-2:
+    # profiles: [ "base" ]
+    env_file: .env.base
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.base
+      args:
+        - ISAACSIM_VERSION_ARG=${ISAACSIM_VERSION}
+        - ISAACSIM_ROOT_PATH_ARG=${DOCKER_ISAACSIM_ROOT_PATH}
+        - ISAACLAB_PATH_ARG=${DOCKER_ISAACLAB_PATH}
+        - DOCKER_USER_HOME_ARG=${DOCKER_USER_HOME}
+    image: michael/isaac-lab-base
+    container_name: michael-isaac-lab-base-2
+    environment: *default-isaac-lab-environment
+    volumes: *default-isaac-lab-volumes
+    network_mode: host
+    deploy: *default-isaac-lab-deploy
+    # This is the entrypoint for the container
+    entrypoint: bash
+    stdin_open: true
+    tty: true
+
   # This service adds a ROS2 Humble
   # installation on top of the base image
   # michael/isaac-lab-ros2:
