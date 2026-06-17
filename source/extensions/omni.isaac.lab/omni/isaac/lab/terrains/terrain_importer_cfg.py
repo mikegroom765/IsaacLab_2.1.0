@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Literal
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.utils import configclass
 
-from .terrain_importer import TerrainImporter
+from .terrain_importer import TerrainImporter, VariedGridTerrainImporter
 
 if TYPE_CHECKING:
-    from .terrain_generator_cfg import TerrainGeneratorCfg
+    from .terrain_generator_cfg import TerrainGeneratorCfg, VariedGridTerrainGeneratorCfg
 
 
 @configclass
@@ -97,3 +97,14 @@ class TerrainImporterCfg:
 
     debug_vis: bool = False
     """Whether to enable visualization of terrain origins for the terrain. Defaults to False."""
+
+
+@configclass
+class VariedGridTerrainImporterCfg(TerrainImporterCfg):
+    """Configuration for the terrain manager."""
+
+    class_type: type = VariedGridTerrainImporter
+    """The class to use for the terrain importer.
+
+    Defaults to :class:`omni.isaac.lab.terrains.terrain_importer.TerrainImporter`.
+    """

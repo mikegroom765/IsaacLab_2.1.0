@@ -9,6 +9,7 @@ from omni.isaac.lab.utils import configclass
 
 from .manager_based_env_cfg import ManagerBasedEnvCfg
 from .ui import ManagerBasedRLEnvWindow
+from omni.isaac.lab.utils.noise import NoiseModelCfg
 
 
 @configclass
@@ -78,3 +79,10 @@ class ManagerBasedRLEnvCfg(ManagerBasedEnvCfg):
 
     Please refer to the :class:`omni.isaac.lab.managers.CommandManager` class for more details.
     """
+
+    action_noise_model: NoiseModelCfg | None = None
+    """The noise model applied to the actions provided to the environment. Default is None, which means no noise is added.
+
+    Please refer to the :class:`omni.isaac.lab.utils.noise.NoiseModel` class for more details.
+    """
+

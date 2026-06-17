@@ -80,6 +80,17 @@ RUN touch /bin/nvidia-smi && \
 
 # installing Isaac Lab dependencies
 # use pip caching to avoid reinstalling large packages
+# Isaac Sim embedded python
+ENV ISAAC_PY=/workspace/isaaclab/_isaac_sim/kit/python/bin/python3
+
+# 1) Make sure pip itself is modern before any installs
+RUN ${ISAAC_PY} -m ensurepip --upgrade && \
+    ${ISAAC_PY} -m pip install --upgrade "pip>=25.2" "setuptools>=70" "wheel>=0.44"
+
+# 2) (optional but wise) preinstall a compatible lxml for later deps
+#    avoids the warning about nvidia-srl-usd-to-urdf wanting lxml<5
+RUN ${ISAAC_PY} -m pip install "lxml<5"
+
 RUN --mount=type=cache,target=${DOCKER_USER_HOME}/.cache/pip \
     ${ISAACLAB_PATH}/isaaclab.sh --install
 

@@ -28,8 +28,17 @@ from omni.isaac.lab.assets import Articulation, RigidObject
 from omni.isaac.lab.managers import SceneEntityCfg
 from omni.isaac.lab.terrains import TerrainImporter
 
+from omni.isaac.lab.sim import schemas
+import omni.isaac.core.utils.prims as prim_utils
+from pxr import UsdPhysics
+import omni.isaac.lab.sim as sim_utils
+import omni.isaac.lab.sim.schemas as schemas
+
+from omni.isaac.lab.managers.manager_base import ManagerTermBase
+from omni.isaac.lab.managers import EventTermCfg
+
 if TYPE_CHECKING:
-    from omni.isaac.lab.envs import ManagerBasedEnv
+    from omni.isaac.lab.envs import ManagerBasedEnv, ManagerBasedRLEnv
 
 
 def randomize_rigid_body_material(
@@ -268,6 +277,18 @@ def randomize_actuator_gains(
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
 
+    # construct an array of prim_paths with the environment ids
+    if env_ids is not None:
+        # add joints to prim_paths
+        prim_paths = [f"/World/envs/env_{env_id}/Robot/base_link/base_roll_joint" for env_id in env_ids]
+        prim_paths += [f"/World/envs/env_{env_id}/Robot/base_roll_link/base_r_drive_wheel_joint" for env_id in env_ids]
+        prim_paths += [f"/World/envs/env_{env_id}/Robot/base_roll_link/base_l_drive_wheel_joint" for env_id in env_ids]
+    else:
+        # add joints to prim_paths
+        prim_paths = [f"/World/envs/env_{env_id}/Robot/base_link/base_roll_joint" for env_id in range(env.scene.num_envs)]
+        prim_paths += [f"/World/envs/env_{env_id}/Robot/base_roll_link/base_r_drive_wheel_joint" for env_id in range(env.scene.num_envs)]
+        prim_paths += [f"/World/envs/env_{env_id}/Robot/base_roll_link/base_l_drive_wheel_joint" for env_id in range(env.scene.num_envs)]
+        
     # resolve environment ids
     if env_ids is None:
         env_ids = torch.arange(env.scene.num_envs, device=asset.device)
@@ -308,7 +329,126 @@ def randomize_actuator_gains(
             damping, damping_distribution_params, env_ids, joint_ids, operation=operation, distribution=distribution
         )[env_ids][:, joint_ids]
         asset.write_joint_damping_to_sim(damping, joint_ids=joint_ids, env_ids=env_ids)
+    
+    for prim_path in prim_paths:
+        cfg = sim_utils.JointDrivePropertiesCfg(drive_type="acceleration")
+        schemas.modify_joint_drive_properties(prim_path, cfg)
+        cfg = sim_utils.JointDrivePropertiesCfg(drive_type="force")
+        schemas.modify_joint_drive_properties(prim_path, cfg)
+        
+    for prim_path in prim_paths:
+        cfg = sim_utils.JointDrivePropertiesCfg(drive_type="force")
+        _validate_joint_drive_properties_on_prim(prim_path, cfg)
 
+
+def _validate_joint_drive_properties_on_prim(prim_path: str, cfg: schemas.JointDrivePropertiesCfg, verbose: bool = False):
+        """Validate the mass properties on the prim.
+
+        Note:
+            Right now this function exploits the hierarchy in the asset to check the properties. This is not a
+            fool-proof way of checking the properties.
+        """
+        joint_cfg = cfg
+        # the root prim
+        root_prim = prim_utils.get_prim_at_path(prim_path)
+        # check joint drive properties are set correctly
+        for link_prim in root_prim.GetAllChildren():
+            for joint_prim in link_prim.GetChildren():
+                if joint_prim.IsA(UsdPhysics.PrismaticJoint) or joint_prim.IsA(UsdPhysics.RevoluteJoint):
+                    # check it has drive API
+                    if not joint_prim.HasAPI(UsdPhysics.DriveAPI):
+                        raise ValueError(f"Joint prim {joint_prim.GetPrimPath()} does not have drive api.")
+                    # iterate over the joint properties
+                    for attr_name, attr_value in joint_cfg.__dict__.items():
+                        # skip names we know are not present
+                        if attr_name == "func":
+                            continue
+                        # manually check joint type
+                        if attr_name == "drive_type":
+                            if joint_prim.IsA(UsdPhysics.PrismaticJoint):
+                                prim_attr_name = "drive:linear:physics:type"
+                            elif joint_prim.IsA(UsdPhysics.RevoluteJoint):
+                                prim_attr_name = "drive:angular:physics:type"
+                            else:
+                                raise ValueError(f"Unknown joint type for prim {joint_prim.GetPrimPath()}")
+                            # check the value
+                            if not attr_value == joint_prim.GetAttribute(prim_attr_name).Get():
+                                raise ValueError(f"Joint prim {joint_prim.GetPrimPath()} has incorrect drive type.")
+                            continue
+                elif verbose:
+                    print(f"Skipping prim {joint_prim.GetPrimPath()} as it is not a joint drive api.")
+
+def reset_joint_drive_type(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor | None,
+):
+    
+    # construct an array of prim_paths with the environment ids
+    if env_ids is not None:
+        prim_paths = [f"/World/envs/env_{env_id}/Robot" for env_id in env_ids]
+    else:
+        prim_paths = [f"/World/envs/env_{env_id}/Robot" for env_id in range(env.scene.num_envs)]
+    
+    for prim_path in prim_paths:
+        cfg = sim_utils.JointDrivePropertiesCfg(drive_type="acceleration")
+        schemas.modify_joint_drive_properties(prim_path, cfg)
+        cfg = sim_utils.JointDrivePropertiesCfg(drive_type="force")
+        schemas.modify_joint_drive_properties(prim_path, cfg)
+        
+    for prim_path in prim_paths:
+        cfg = sim_utils.JointDrivePropertiesCfg(drive_type="force")
+        _validate_joint_drive_properties_on_prim(prim_path, cfg)
+    
+    
+
+def reset_joint_effort_limits(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor | None,
+    asset_cfg: SceneEntityCfg,
+    effort_limit_params: tuple[float, float] | None = None,
+    operation: Literal["add", "scale", "abs"] = "abs",
+    distribution: Literal["uniform", "log_uniform", "gaussian"] = "uniform",
+):
+
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+
+    # resolve environment ids
+    if env_ids is None:
+        env_ids = torch.arange(env.scene.num_envs, device=asset.device)
+
+    # resolve joint indices
+    if asset_cfg.joint_ids == slice(None):
+        joint_ids_list = range(asset.num_joints)
+        joint_ids = slice(None)  # for optimization purposes
+    else:
+        joint_ids_list = asset_cfg.joint_ids
+        joint_ids = torch.tensor(asset_cfg.joint_ids, dtype=torch.int, device=asset.device)
+
+    # check if none of the joint indices are in explicit motor mode
+    for joint_index in joint_ids_list:
+        for act_name, actuator in asset.actuators.items():
+            # if joint indices are a slice (i.e., all joints are captured) or the joint index is in the actuator
+            if actuator.joint_indices == slice(None) or joint_index in actuator.joint_indices:
+                if not isinstance(actuator, ImplicitActuator):
+                    raise NotImplementedError(
+                        "Event term 'randomize_actuator_stiffness_and_damping' is performed on asset"
+                        f" '{asset_cfg.name}' on the joint '{asset.joint_names[joint_index]}' ('{joint_index}') which"
+                        f" uses an explicit actuator model '{act_name}<{actuator.__class__.__name__}>'. This operation"
+                        " is currently not supported for explicit actuator models."
+                    )
+
+    usd_effort_limit = asset.root_physx_view.get_dof_max_forces().clone().to(asset.device)
+
+    # sample joint properties from the given ranges and set into the physics simulation
+    # -- effort limits
+    if effort_limit_params is not None:
+        effort_limits = usd_effort_limit[:, joint_ids]
+        effort_limits = _randomize_prop_by_op(
+            effort_limits, effort_limit_params, env_ids, joint_ids, operation=operation, distribution=distribution
+        )[env_ids][:, joint_ids]
+        asset.write_joint_effort_limit_to_sim(effort_limits, joint_ids=joint_ids, env_ids=env_ids)
+        
 
 def randomize_joint_parameters(
     env: ManagerBasedEnv,
@@ -589,6 +729,42 @@ def push_by_setting_velocity(
     # set the velocities into the physics simulation
     asset.write_root_velocity_to_sim(vel_w, env_ids=env_ids)
 
+def reset_root_state_ee_tcp(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    pose_range: dict[str, tuple[float, float]],
+    velocity_range: dict[str, tuple[float, float]],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    object_cfg: SceneEntityCfg = SceneEntityCfg("test_object"),
+):
+    """Reset the asset root state
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject | Articulation = env.scene[asset_cfg.name]
+    test_object: RigidObject | Articulation = env.scene[object_cfg.name]
+    # get default root state
+    root_states = test_object.data.default_root_state[env_ids].clone()
+    ee_tcp_body_id = asset.find_bodies("ee_tcp")[0]
+    ee_tcp_pos_w = asset.data.body_pos_w[env_ids, ee_tcp_body_id, :].squeeze(1)
+    
+    # TODO: Add an offset in z in the ee_tcp frame
+    
+    ee_tcp_quat_w = asset.data.body_quat_w[env_ids, ee_tcp_body_id, :].squeeze(1)
+    block_offset = torch.zeros([2, 3], device=root_states.device)
+    block_offset[0, 0] = 0.1579#  + 0.3
+    block_offset[0, 1] = -2.4219
+    block_offset[0, 2] = 0.95
+    block_offset[1, 0] = 0.1579# + 0.3
+    block_offset[1, 1] = 2.5779
+    block_offset[1, 2] = 0.95
+            
+    # block_offset = math_utils.quat_apply(ee_tcp_quat_w, block_offset)
+
+    positions = block_offset[env_ids] # ee_tcp_pos_w + block_offset
+
+    # set into the physics simulation
+    test_object.write_root_pose_to_sim(torch.cat([positions, root_states[:, 3:7]], dim=-1), env_ids=env_ids)
+    test_object.write_root_velocity_to_sim(root_states[:, 7:13], env_ids=env_ids)
 
 def reset_root_state_uniform(
     env: ManagerBasedEnv,
@@ -633,7 +809,312 @@ def reset_root_state_uniform(
     # set into the physics simulation
     asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
     asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+    
+class reset_root_state_uniform_per_env(ManagerTermBase):
+    """Reset the asset root state to a random position and velocity uniformly within the given ranges.
+    
+    This function does the same as `reset_root_state_uniform`, but it resets the root state for each environment 
+    independently by storing ranges for each environment. This is for curriculum learning where the ranges for each
+    environment can be different due to level progression.
+    
+    Currently not that general, and setup for use in LiftCube task.
+    """
+    
+    current_ranges: torch.tensor
+    
+    def __init__(self, cfg: EventTermCfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        self._initialised = False
+        self.initial_root_state = None
+        self.current_levels = torch.zeros(env.num_envs, device=env.device)
+        self.current_ranges = torch.zeros(env.num_envs, 6, 2, device=env.device)
+        self.level_intervals = 1
+    
+    def __call__(self, 
+                env: ManagerBasedEnv, 
+                env_ids: torch.Tensor,
+                initial_root_state: dict[str, tuple[float, float]],
+                initial_velocity_range: dict[str, tuple[float, float]],
+                x_pose_range: tuple[float, float],
+                asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+                initial_level_zero: bool = True,
+                ):
+        
+        if not self._initialised:
+            self.initial_root_state = torch.tensor([initial_root_state.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]], device=env.device)
+            self.vel_range_list = torch.tensor([initial_velocity_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]], device=env.device)
+            self.distance_diff = (x_pose_range[1] - x_pose_range[0]) / self.level_intervals
+            self.current_ranges[:] = self.initial_root_state
+            if not initial_level_zero:
+                self.current_levels[:] = 1.0
+        
+        # extract the used quantities (to enable type-hinting)
+        asset: RigidObject | Articulation = env.scene[asset_cfg.name]
+        # get default root state
+        root_states = asset.data.default_root_state[env_ids].clone()
 
+        # for envs on level zero, set the sample range to self.initial_root_state
+        zero_level_env_mask = self.current_levels[env_ids] == 0
+        if torch.any(zero_level_env_mask):
+            update_env_ids = env_ids[zero_level_env_mask]
+            self.current_ranges[update_env_ids] = self.initial_root_state
+        
+        # for envs not on level zero, calculate the new ranges
+        if torch.any(~zero_level_env_mask):
+            
+            # compute step size for level progression
+            x_upper = x_pose_range[0] + self.current_levels[env_ids][~zero_level_env_mask] * self.distance_diff
+            x_lower = x_pose_range[0]
+            update_env_ids = env_ids[~zero_level_env_mask]
+            self.current_ranges[update_env_ids, 0, 0] = x_lower
+            self.current_ranges[update_env_ids, 0, 1] = x_upper 
+
+        # poses
+        # self.current_ranges = torch.tensor(range_list, device=asset.device)
+        rand_samples = math_utils.sample_uniform(self.current_ranges[env_ids, :, 0], self.current_ranges[env_ids, :, 1], (len(env_ids), 6), device=asset.device)
+
+        positions = root_states[:, 0:3] + env.scene.env_origins[env_ids] + rand_samples[:, 0:3]
+        orientations_delta = math_utils.quat_from_euler_xyz(rand_samples[:, 3], rand_samples[:, 4], rand_samples[:, 5])
+        orientations = math_utils.quat_mul(root_states[:, 3:7], orientations_delta)
+        # velocities
+        # self.current_ranges = torch.tensor(range_list, device=asset.device)
+        rand_samples = math_utils.sample_uniform(self.vel_range_list[:, 0], self.vel_range_list[:, 1], (len(env_ids), 6), device=asset.device)
+        velocities = root_states[:, 7:13] + rand_samples
+
+        # set into the physics simulation
+        asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
+        asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+
+class reset_root_state_uniform_set_height_per_env(ManagerTermBase):
+    """Reset the asset root state to a random position uniformly within the given ranges.
+    
+    This function randomizes the root position of the asset, with a given height, and tracks ranges for each environment.
+    
+    Currently not that general, and setup for use in LiftCube task. Currently only supports random sampling of x and y.
+    """
+    
+    current_ranges: torch.tensor
+    
+    def __init__(self, cfg: EventTermCfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        self._initialised = False
+        self.initial_root_state = None
+        self.current_levels = torch.zeros(env.num_envs, device=env.device)
+        self.current_position_ranges = torch.zeros(env.num_envs, 2, 2, device=env.device)
+        self.level_intervals = 1
+        
+    def __call__(self,
+                 env: ManagerBasedEnv,
+                 env_ids: torch.Tensor,
+                 initial_position_range: dict[str, tuple[float, float]],
+                 position_range: dict[str, tuple[float, float]],
+                 set_heights: list[float],
+                 asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+                 initial_level_zero: bool = True,
+                 ):
+        
+        if not self._initialised:
+            self.initial_root_state = torch.tensor([initial_position_range.get(key, (0.0, 0.0)) for key in ["x", "y"]], device=env.device)
+            self.position_ranges = torch.tensor([position_range.get(key, (0.0, 0.0)) for key in ["x", "y"]], device=env.device)
+            self.distance_diffs = (self.position_ranges[:, 1] - self.position_ranges[:, 0]) / self.level_intervals
+            self.current_position_ranges[:] = self.initial_root_state
+            if not initial_level_zero:
+                self.current_levels[:] = 1.0
+
+        # extract the used quantities (to enable type-hinting)
+        asset: RigidObject | Articulation = env.scene[asset_cfg.name]
+        # get default root state
+        root_states = asset.data.default_root_state[env_ids].clone()
+        
+        # for envs on level zero, set the sample range to self.initial_root_state
+        zero_level_env_mask = self.current_levels[env_ids] == 0
+        if torch.any(zero_level_env_mask):
+            update_env_ids = env_ids[zero_level_env_mask]
+            self.current_position_ranges[update_env_ids] = self.initial_root_state
+            
+        # for envs not on level zero, calculate the new ranges
+        if torch.any(~zero_level_env_mask):
+            # compute step size for level progression
+            position_upper = self.current_levels[env_ids][~zero_level_env_mask].unsqueeze(-1) * self.distance_diffs + self.position_ranges[:, 0]
+            position_lower = -position_upper
+            update_env_ids = env_ids[~zero_level_env_mask]
+            self.current_position_ranges[update_env_ids, :, 0] = position_lower
+            self.current_position_ranges[update_env_ids, :, 1] = position_upper
+            
+        rand_samples = math_utils.sample_uniform(self.current_position_ranges[env_ids, :, 0], self.current_position_ranges[env_ids, :, 1], (len(env_ids), 2), device=asset.device)
+        
+        positions = root_states[:, 0:2] + env.scene.env_origins[env_ids, 0:2] + rand_samples
+        set_heights_tensor = torch.tensor([set_heights[0]] * env.num_envs if len(set_heights) == 1 else set_heights, device=asset.device)
+        positions = torch.cat([positions, set_heights_tensor[env_ids].unsqueeze(1)], dim=1)
+        
+        # set into the physics simulation
+        asset.write_root_pose_to_sim(torch.cat([positions, root_states[:, 3:7]], dim=-1), env_ids=env_ids)
+        asset.write_root_velocity_to_sim(torch.zeros_like(root_states[:, 7:13]), env_ids=env_ids)
+        
+        # update initial object position 
+        masked_object_position_idx = env.observation_manager.active_terms["policy"].index("masked_object_position")
+        updated_positions = positions - env.scene.env_origins[env_ids, 0:3]
+        # env_ids_copy = env_ids.clone()
+        env.observation_manager._group_obs_term_cfgs["policy"][masked_object_position_idx].func.reset(env_ids, updated_positions)
+
+
+class reset_robot_joints_set_table_height(ManagerTermBase):
+    """Class for resetting the robot joints so that the robot avoids the table.
+    
+    Resets all joints around the default position and velocity by the given ranges.
+    
+    This function samples random values from the given ranges around the default joint positions and velocities.
+    The ranges are clipped to fit inside the soft joint limits. The sampled values are then set into the physics
+    simulation."""
+    
+    table_heights: torch.tensor
+    
+    def __init__(self, cfg: EventTermCfg, env: ManagerBasedEnv):
+        super().__init__(cfg, env)
+        self.initialised = False
+        self.table_heights = torch.zeros(env.num_envs, device=env.device)
+        self.lift_joint_heights = torch.zeros(env.num_envs, 2, device=env.device) # arm_lift_joint and torso_lift_joint heights
+        self.current_levels = torch.zeros(env.num_envs, device=env.device)
+        self.position_ranges = torch.zeros(env.num_envs, 2, device=env.device)
+        self.velocity_range_list = torch.zeros(env.num_envs, 2, device=env.device)
+        self.lift_joint_ids = [0, 0] # [arm_lift_joint_id, torso_lift_joint_id]
+        
+    def __call__(self,
+                 env: ManagerBasedEnv,
+                 env_ids: torch.Tensor,
+                 table_heights: list[float],
+                 position_range: tuple[float, float],
+                 velocity_range: tuple[float, float],
+                 asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+                 initial_level_zero: bool = True,
+    ):
+        # extract the used quantities (to enable type-hinting)
+        asset: Articulation = env.scene[asset_cfg.name]
+        
+        if not self.initialised:
+            self.table_heights = torch.tensor(table_heights, device=env.device)
+            self.lift_joint_heights[:, 0] = (self.table_heights - 0.1) * 2/3
+            self.lift_joint_heights[:, 1] = (self.table_heights - 0.1) * 1/3
+            self.lift_joint_ids[0] = asset.find_joints("arm_lift_joint")[0][0]
+            self.lift_joint_ids[1] = asset.find_joints("torso_lift_joint")[0][0]
+            self.initial_position_ranges = torch.tensor([position_range] * env.num_envs, device=env.device)
+            self.position_ranges = torch.zeros(env.num_envs, 2, device=env.device)
+            self.initial_velocity_range_list = torch.tensor([velocity_range] * env.num_envs, device=env.device)
+            self.velocity_range_list = torch.zeros(env.num_envs, 2, device=env.device)
+            self.initialised = True
+            if not initial_level_zero:
+                self.current_levels[:] = 1.0
+            
+        zero_level_env_mask = self.current_levels[env_ids] == 0
+        if torch.any(zero_level_env_mask):
+            update_env_ids = env_ids[zero_level_env_mask]
+            self.position_ranges[update_env_ids] = torch.zeros(2, device=env.device)
+            self.velocity_range_list[update_env_ids] = torch.zeros(2, device=env.device)
+            
+        if torch.any(~zero_level_env_mask):
+            update_env_ids = env_ids[~zero_level_env_mask]
+            self.position_ranges[update_env_ids] = self.initial_position_ranges[update_env_ids] # * self.current_levels[update_env_ids].unsqueeze(-1)
+            self.velocity_range_list[update_env_ids] = self.initial_velocity_range_list[update_env_ids] # * self.current_levels[update_env_ids].unsqueeze(-1)
+        
+        # get default joint state
+        joint_min_pos = asset.data.default_joint_pos[env_ids] + self.position_ranges[env_ids, 0].unsqueeze(-1)
+        joint_max_pos = asset.data.default_joint_pos[env_ids] + self.position_ranges[env_ids, 1].unsqueeze(-1)
+        joint_min_vel = asset.data.default_joint_vel[env_ids] + self.velocity_range_list[env_ids, 0].unsqueeze(-1)
+        joint_max_vel = asset.data.default_joint_vel[env_ids] + self.velocity_range_list[env_ids, 1].unsqueeze(-1)
+        
+        if torch.any(zero_level_env_mask):
+            # update_env_ids = env_ids[zero_level_env_mask]
+            joint_min_pos[zero_level_env_mask, self.lift_joint_ids[0]] = self.lift_joint_heights[env_ids][zero_level_env_mask, 0]
+            joint_min_pos[zero_level_env_mask, self.lift_joint_ids[1]] = self.lift_joint_heights[env_ids][zero_level_env_mask, 1]
+            joint_max_pos[zero_level_env_mask, self.lift_joint_ids[0]] = self.lift_joint_heights[env_ids][zero_level_env_mask, 0]
+            joint_max_pos[zero_level_env_mask, self.lift_joint_ids[1]] = self.lift_joint_heights[env_ids][zero_level_env_mask, 1]
+        
+        # clip pos to range
+        joint_pos_limits = asset.data.soft_joint_pos_limits[env_ids, ...]
+        joint_min_pos = torch.clamp(joint_min_pos, min=joint_pos_limits[..., 0], max=joint_pos_limits[..., 1])
+        joint_max_pos = torch.clamp(joint_max_pos, min=joint_pos_limits[..., 0], max=joint_pos_limits[..., 1])
+        # # clip lift joints to range
+        # joint_min_pos[:, self.lift_joint_ids[0]] = torch.clamp(joint_min_pos[:, self.lift_joint_ids[0]], min=self.lift_joint_heights[:, 0])
+        # joint_min_pos[:, self.lift_joint_ids[1]] = torch.clamp(joint_max_pos[:, self.lift_joint_ids[1]], min=self.lift_joint_heights[:, 1])
+        # clip vel to range
+        joint_vel_abs_limits = asset.data.soft_joint_vel_limits[env_ids]
+        joint_min_vel = torch.clamp(joint_min_vel, min=-joint_vel_abs_limits, max=joint_vel_abs_limits)
+        joint_max_vel = torch.clamp(joint_max_vel, min=-joint_vel_abs_limits, max=joint_vel_abs_limits)
+        # sample these values randomly
+        joint_pos = math_utils.sample_uniform(joint_min_pos, joint_max_pos, joint_min_pos.shape, env.device)
+        joint_vel = math_utils.sample_uniform(joint_min_vel, joint_max_vel, joint_min_vel.shape, env.device)
+        
+        # # set lift joints to the given heights if less than the table height
+        # joint_pos[env_ids, self.lift_joint_ids[0]] = torch.where(joint_pos[env_ids, self.lift_joint_ids[0]] < self.lift_joint_heights[env_ids, 0], self.lift_joint_heights[env_ids, 0], joint_pos[env_ids, self.lift_joint_ids[0]])
+        
+        
+        if torch.any(zero_level_env_mask):
+            # update_env_ids = env_ids[zero_level_env_mask]
+            
+            joint_pos[zero_level_env_mask, self.lift_joint_ids[0]] = self.lift_joint_heights[env_ids][zero_level_env_mask, 0]
+            joint_pos[zero_level_env_mask, self.lift_joint_ids[1]] = self.lift_joint_heights[env_ids][zero_level_env_mask, 1]
+            
+        joint_pos[:, self.lift_joint_ids[0]] = torch.clamp(joint_pos[:, self.lift_joint_ids[0]], min=self.lift_joint_heights[env_ids, 0])
+        joint_pos[:, self.lift_joint_ids[1]] = torch.clamp(joint_pos[:, self.lift_joint_ids[1]], min=self.lift_joint_heights[env_ids, 1])
+            
+        # set into the physics simulation
+        asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+                 
+
+
+def reset_root_state_uniform_set_height(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    pose_range: dict[str, tuple[float, float]],
+    set_heights: list[float],
+    velocity_range: dict[str, tuple[float, float]],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    """Reset the asset root state to a random position and velocity uniformly within the given ranges.
+
+    This function randomizes the root position and velocity of the asset.
+
+    * It samples the root position from the given ranges and adds them to the default root position, before setting
+      them into the physics simulation.
+    * It samples the root orientation from the given ranges and sets them into the physics simulation.
+    * It samples the root velocity from the given ranges and sets them into the physics simulation.
+
+    The function takes a dictionary of pose and velocity ranges for each axis and rotation. The keys of the
+    dictionary are ``x``, ``y``, ``z``, ``roll``, ``pitch``, and ``yaw``. The values are tuples of the form
+    ``(min, max)``. If the dictionary does not contain a key, the position or velocity is set to zero for that axis.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject | Articulation = env.scene[asset_cfg.name]
+    # get default root state
+    root_states = asset.data.default_root_state[env_ids].clone()
+
+    # poses
+    range_list = [pose_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
+    ranges = torch.tensor(range_list, device=asset.device)
+    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (len(env_ids), 6), device=asset.device)
+
+    positions = root_states[:, 0:2] + env.scene.env_origins[env_ids, 0:2] + rand_samples[:, 0:2]
+    set_heights_tensor = torch.tensor([set_heights[0]] * env.num_envs if len(set_heights) == 1 else set_heights, device=asset.device)
+    # reverse the set_heights_tensor
+    positions = torch.cat([positions, set_heights_tensor[env_ids].unsqueeze(1)], dim=1)
+    orientations_delta = math_utils.quat_from_euler_xyz(rand_samples[:, 3], rand_samples[:, 4], rand_samples[:, 5])
+    orientations = math_utils.quat_mul(root_states[:, 3:7], orientations_delta)
+    # velocities
+    range_list = [velocity_range.get(key, (0.0, 0.0)) for key in ["x", "y", "z", "roll", "pitch", "yaw"]]
+    ranges = torch.tensor(range_list, device=asset.device)
+    rand_samples = math_utils.sample_uniform(ranges[:, 0], ranges[:, 1], (len(env_ids), 6), device=asset.device)
+
+    velocities = root_states[:, 7:13] + rand_samples
+
+    # set into the physics simulation
+    asset.write_root_pose_to_sim(torch.cat([positions, orientations], dim=-1), env_ids=env_ids)
+    asset.write_root_velocity_to_sim(velocities, env_ids=env_ids)
+    
+    # update initial object position 
+    masked_object_position_idx = env.observation_manager.active_terms["policy"].index("masked_object_position")
+    updated_positions = positions - env.scene.env_origins[env_ids, 0:3]
+    # env_ids_copy = env_ids.clone()
+    env.observation_manager._group_obs_term_cfgs["policy"][masked_object_position_idx].func.reset(env_ids, updated_positions)
 
 def reset_root_state_with_random_orientation(
     env: ManagerBasedEnv,
@@ -843,6 +1324,90 @@ def reset_scene_to_default(env: ManagerBasedEnv, env_ids: torch.Tensor):
         # set into the physics simulation
         articulation_asset.write_joint_state_to_sim(default_joint_pos, default_joint_vel, env_ids=env_ids)
 
+
+def reset_cylinder_joints_by_position(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    position: dict[str, float],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("cylinder"),
+):
+    """Reset the cylinder joints by setting the joint positions to the given position.
+
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # get default joint state
+    joint_pos = asset.data.default_joint_pos[env_ids].clone()
+    joint_vel = asset.data.default_joint_vel[env_ids].clone()
+
+    reset_root_state_uniform(env, env_ids, pose_range={"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0), "yaw": (0.0, 0.0)},
+                velocity_range={
+                    "x": (-0.0, 0.0),
+                    "y": (-0.0, 0.0),
+                    "z": (-0.0, 0.0),
+                    "roll": (-0.0, 0.0),
+                    "pitch": (-0.0, 0.0),
+                    "yaw": (-0.0, 0.0),
+                }, asset_cfg=asset_cfg)
+
+    # set the joint positions to the given position
+    joint_pos[:, 0] = position["x"]
+    joint_pos[:, 1] = position["y"]
+    joint_pos[:, 2] = position["z"]
+
+    # set into the physics simulation
+    asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+
+
+def randomise_cylinder_velocities(
+    env: ManagerBasedEnv,
+    env_ids: torch.Tensor,
+    velocity_range: tuple[float, float],
+    grid_size: tuple[float, float],
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("cylinder"),
+):
+    """Randomize the velocities of the articulation by sampling random values from the given range.
+
+    This function samples random velocities from the given range and sets them into the physics simulation.
+    """
+    # check if env_ids is empty
+    if len(env_ids) > 0:
+        # extract the used quantities (to enable type-hinting)
+        asset: Articulation = env.scene[asset_cfg.name]
+        # get the current velocities
+        joint_vel = asset.data.joint_vel[env_ids].clone()
+        # get the current positions
+        joint_pos = asset.data.joint_pos[env_ids].clone()
+
+        # check if cylinder is outside of the grid
+        grid_min_x, grid_max_x = -grid_size[0]/2, grid_size[0]/2
+        grid_min_y, grid_max_y = -grid_size[1]/2, grid_size[1]/2
+        
+        outside_x_below = (joint_pos[:, 0] < grid_min_x)
+        outside_x_above = (joint_pos[:, 0] > grid_max_x)
+        outside_y_below = (joint_pos[:, 1] < grid_min_y)
+        outside_y_above = (joint_pos[:, 1] > grid_max_y)
+
+        # if outside of the grid reset the joint position to inside the grid
+        joint_pos[outside_x_below, 0] = grid_min_x + 0.25
+        joint_pos[outside_x_above, 0] = grid_max_x - 0.25
+        joint_pos[outside_y_below, 1] = grid_min_y + 0.25
+        joint_pos[outside_y_above, 1] = grid_max_y - 0.25
+
+        # sample random joint velocities
+        joint_vel = math_utils.sample_uniform(*velocity_range, joint_vel.shape, device=asset.device)
+
+        # if outside of the grid, reset the joint velocities so that the cylinder doesn't move out of the grid
+        joint_vel[outside_x_below, 0] = joint_vel[outside_x_below, 0].abs()
+        joint_vel[outside_x_above, 0] = -joint_vel[outside_x_above, 0].abs()
+        joint_vel[outside_y_below, 1] = joint_vel[outside_y_below, 1].abs()
+        joint_vel[outside_y_above, 1] = -joint_vel[outside_y_above, 1].abs()
+
+        joint_vel[:, 2] = 0.0
+
+        # set into the physics simulation
+        asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+    
 
 """
 Internal helper functions.

@@ -68,6 +68,47 @@ class is_terminated_term(ManagerTermBase):
         return (reset_buf * (~env.termination_manager.time_outs)).float()
 
 
+class padded_alive_cost(ManagerTermBase):
+    """"Penalize specified terminations by the amount of penalty they would have recieved for staying alive and not
+    achieving the goal. This is assuming that a penalty is applied at every timestep to encourage the agent to
+    complete the task faster.
+    
+    The parameters are as follows:
+    
+    * attr:'num_steps_per_env': The number of steps per environment between learning updates.
+    * attr:`term_keys`: The termination terms to penalize. This can be a string, a list of strings
+      or regular expressions. Default is ".*" which penalizes all terminations.
+    * attr:`alive_cost_term_name`: The name of the reward term used to apply alive penalties. This is a string. 
+      Default is "alive".
+
+    The penality is calculated as the number of steps remaining in the episode * the alive penalty weight.
+    This penality is only applied to terminations that are not episodic timeouts and that are specified in term_keys.
+
+    The goal of this termination is to penalize the agent for being terminated early in the episode, without achieving
+    the goal.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        # initialize the base class
+        super().__init__(cfg, env)
+        # find and store the termination terms
+        term_keys = cfg.params.get("term_keys", ".*")
+        self._term_names = env.termination_manager.find_terms(term_keys)
+
+    def __call__(self, env: ManagerBasedRLEnv, num_steps_per_env: int, term_keys: str | list[str] = ".*", alive_cost_term_name: str = "alive") -> torch.Tensor:
+        # calculate the number of steps remaining in the episode
+        steps_remaining = num_steps_per_env - (env.episode_length_buf % num_steps_per_env)
+        # get the alive penalty weight
+        alive_penalty_weight = env.reward_manager.get_term_cfg(alive_cost_term_name).weight
+        # calculate the reset buffer
+        reset_buf = torch.zeros(env.num_envs, device=env.device)
+        terms = [env.termination_manager.get_term(term) for term in self._term_names]
+        reset_buf = torch.stack(terms, dim=0).sum(dim=0)
+        # clip in place to [0, 1], meaning "1" if the episode is terminated
+        reset_buf.clamp_(max=1)
+        # calculate the penalty - only apply to terminations that are not episodic timeouts
+        return (reset_buf * steps_remaining * alive_penalty_weight * (~env.termination_manager.time_outs)).float()
+
 """
 Root penalties.
 """
@@ -116,6 +157,13 @@ def body_lin_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEnt
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.sum(torch.norm(asset.data.body_lin_acc_w[:, asset_cfg.body_ids, :], dim=-1), dim=1)
 
+def body_lin_vel_l2_filtered(env: ManagerBasedRLEnv, body_names: list[str], asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize the linear velocity of bodies using L2-kernel.
+    Only the bodies specified in body_names will have their linear velocities contribute to the L2 norm.
+    """
+    asset: Articulation = env.scene[asset_cfg.name]
+    body_ids = [asset.find_bodies(body_name)[0] for body_name in body_names]
+    return torch.sum(torch.norm(asset.data.body_lin_vel_w[:, body_ids, :], dim=-1), dim=1).squeeze()
 
 """
 Joint penalties.
@@ -148,6 +196,28 @@ def joint_vel_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids]), dim=1)
 
+def joint_vel_l2_filtered(env: ManagerBasedRLEnv, joint_names: list[str], asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize joint velocities on the articulation using L2-kernel.
+    Only the joints specified in joint_names will have their joint velocities contribute to the L2 norm.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    joint_ids = [asset.find_joints(joint_name)[0] for joint_name in joint_names]
+    return torch.sum(torch.square(asset.data.joint_vel[:, joint_ids]), dim=1).squeeze()
+
+def joint_vel_norm_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize joint velocities on the articulation using L2-kernel. 
+    Before computing the L2 norm, the joint velocities are normalized by the soft joint velocity limits.
+
+    NOTE: Only the joints configured in :attr:`asset_cfg.joint_ids` will have their joint velocities contribute to the L1 norm.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    # calculate the joint velocity normalised by the soft joint velocity limits
+    limits = asset.data.soft_joint_vel_limits[:, asset_cfg.joint_ids]
+    # set the limits to 1.0 if they are zero to avoid division by zero
+    limits[limits == 0.0] = 1.0
+    return torch.sum(torch.square(asset.data.joint_vel[:, asset_cfg.joint_ids] / limits), dim=1)
 
 def joint_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     """Penalize joint accelerations on the articulation using L2-kernel.
@@ -157,6 +227,15 @@ def joint_acc_l2(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg = SceneEntity
     # extract the used quantities (to enable type-hinting)
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.sum(torch.square(asset.data.joint_acc[:, asset_cfg.joint_ids]), dim=1)
+
+def joint_acc_l2_filtered(env: ManagerBasedRLEnv, joint_names: list[str], asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    """Penalize joint accelerations on the articulation using L2-kernel.
+    Only the joints specified in joint_names will have their joint accelerations contribute to the L2 norm.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    joint_ids = [asset.find_joints(joint_name)[0] for joint_name in joint_names]
+    return torch.sum(torch.square(asset.data.joint_acc[:, joint_ids]), dim=1).squeeze()
 
 
 def joint_deviation_l1(env, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -255,6 +334,31 @@ def undesired_contacts(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: Sce
     is_contact = torch.max(torch.norm(net_contact_forces[:, :, sensor_cfg.body_ids], dim=-1), dim=1)[0] > threshold
     # sum over contacts for each environment
     return torch.sum(is_contact, dim=1)
+
+class undesired_contacts_list(ManagerTermBase):
+    """Penalize undesired contacts as the number of violations that are above a threshold.
+    """
+
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        # initialize the base class
+        super().__init__(cfg, env)
+        
+        self._sensor_cfg_list = []
+        self._is_initialised = False
+
+    def __call__(self, env: ManagerBasedRLEnv, threshold: float, sensor_cfg_list: list[str]) -> torch.Tensor:
+        if not self._is_initialised:
+            for sensor_name in sensor_cfg_list:
+                contact_sensor: ContactSensor = env.scene.sensors[sensor_name]
+                self._sensor_cfg_list.append(contact_sensor)
+            self._is_initialised = True
+
+        # check all contact sensors if contact force is above threshold
+        is_contact = torch.zeros(env.num_envs, device=env.device)
+        for contact_sensor in self._sensor_cfg_list:
+            force_matrix_w = contact_sensor.data.force_matrix_w 
+            is_contact += torch.any(torch.max(torch.norm(force_matrix_w, dim=-1), dim=1)[0] > threshold, dim=-1)
+        return is_contact * 1.0
 
 
 def contact_forces(env: ManagerBasedRLEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:

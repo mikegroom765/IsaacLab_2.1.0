@@ -249,3 +249,87 @@ class TerminationManager(ManagerBase):
             # check if the term is a class
             if isinstance(term_cfg.func, ManagerTermBase):
                 self._class_term_cfgs.append(term_cfg)
+
+
+class IllegalContactTerminationManager(TerminationManager):
+    """Manager for computing done signals for a given world.
+
+    The termination manager computes the termination signal (also called dones) as a combination
+    of termination terms. Each termination term is a function which takes the environment as an
+    argument and returns a boolean tensor of shape (num_envs,). The termination manager
+    computes the termination signal as the union (logical or) of all the termination terms.
+
+    Following the `Gymnasium API <https://gymnasium.farama.org/tutorials/gymnasium_basics/handling_time_limits/>`_,
+    the termination signal is computed as the logical OR of the following signals:
+
+    * **Time-out**: This signal is set to true if the environment has ended after an externally defined condition
+      (that is outside the scope of a MDP). For example, the environment may be terminated if the episode has
+      timed out (i.e. reached max episode length).
+    * **Terminated**: This signal is set to true if the environment has reached a terminal state defined by the
+      environment. This state may correspond to task success, task failure, robot falling, etc.
+    * **Illegal Contact Terminated**: This signal is set to true if the environment has reached a terminal state 
+      due to illegal contact. This signal is useful for applying penalties when the robot makes illegal contact with
+      the environment.
+
+    These signals can be individually accessed using the :attr:`time_outs`, :attr:`terminated` and 
+    :attr:`illegal_contact_terminated` properties.
+
+    The termination terms are parsed from a config class containing the manager's settings and each term's
+    parameters. Each termination term should instantiate the :class:`TerminationTermCfg` class. The term's
+    configuration :attr:`TerminationTermCfg.time_out` decides whether the term is a timeout or a termination term.
+    The term's configuration :attr:'IllegalContactTerminationTermCfg.illegal_contact_terminated' decides whether the term is an
+    illegal contact termination term.
+    """
+
+    _illegal_contact_terminated_buf: torch.Tensor
+
+    def __init__(self, cfg: object, env: ManagerBasedRLEnv):
+        """Initializes the termination manager.
+
+        Args:
+            cfg: The configuration object or dictionary (``dict[str, TerminationTermCfg | IllegalContactTerminationTermCfg]``).
+            env: An environment object.
+        """
+        super().__init__(cfg, env)
+        self._illegal_contact_terminated_buf = torch.zeros_like(self._truncated_buf)
+
+    """
+    Properties.
+    """
+
+    @property
+    def illegal_contact_terminated(self) -> torch.Tensor:
+        """The illegal contact terminated signal. Shape is (num_envs,).
+
+        This signal is set to true if the environment has reached a terminal state due to illegal contact.
+        This signal is useful for applying penalties when the robot makes illegal contact with the environment.
+        """
+        return self._illegal_contact_terminated_buf
+    
+    def compute(self) -> torch.Tensor:
+        """Computes the termination signal as union of individual terms.
+
+        This function calls each termination term managed by the class and performs a logical OR operation
+        to compute the net termination signal.
+
+        Returns:
+            The combined termination signal of shape (num_envs,).
+        """
+        # reset computation
+        self._truncated_buf[:] = False
+        self._terminated_buf[:] = False
+        # iterate over all the termination terms
+        for name, term_cfg in zip(self._term_names, self._term_cfgs):
+            value = term_cfg.func(self._env, **term_cfg.params)
+            # store timeout signal separately
+            if term_cfg.time_out:
+                self._truncated_buf |= value
+            else:
+                self._terminated_buf |= value
+            # store illegal contact termination signal separately
+            if term_cfg.illegal_contact_terminated:
+                self._illegal_contact_terminated_buf = value
+            # add to episode dones
+            self._term_dones[name][:] = value
+        # return combined termination signal
+        return self._truncated_buf | self._terminated_buf

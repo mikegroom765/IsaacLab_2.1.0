@@ -73,3 +73,12 @@ def base_angle_to_target(
     angle_to_target = torch.atan2(torch.sin(angle_to_target), torch.cos(angle_to_target))
 
     return angle_to_target.unsqueeze(-1)
+
+"""
+Commands.
+"""
+
+
+def generated_commands(env: ManagerBasedRLEnv, command_name: str) -> torch.Tensor:
+    """The generated command from command term in the command manager with the given name."""
+    return env.command_manager.get_command(command_name)

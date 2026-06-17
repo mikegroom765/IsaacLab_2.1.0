@@ -40,6 +40,7 @@ class EventManager(ManagerBase):
     For a typical training process, you may want to apply events in the following modes:
 
     - "startup": Event is applied once at the beginning of the training.
+    - "num_rollouts": Event is applied after every num_rollouts number of rollouts.
     - "reset": Event is applied at every reset.
     - "interval": Event is applied at pre-specified intervals of time.
 
@@ -64,6 +65,7 @@ class EventManager(ManagerBase):
             env: An environment object.
         """
         super().__init__(cfg, env)
+        self._num_rollouts_counters = dict()
 
     def __str__(self) -> str:
         """Returns: A string representation for event manager."""
@@ -114,9 +116,23 @@ class EventManager(ManagerBase):
 
     def reset(self, env_ids: Sequence[int] | None = None) -> dict[str, float]:
         # call all terms that are classes
-        for mode_cfg in self._mode_class_term_cfgs.values():
+        for (names, mode, mode_cfg) in zip(self._mode_term_names.values(), self._mode_term_names.keys(), self._mode_class_term_cfgs.values()):
             for term_cfg in mode_cfg:
                 term_cfg.func.reset(env_ids=env_ids)
+            if mode == "num_rollouts":
+                for idx, name in enumerate(names):
+                    # check if counter exists
+                    if name not in self._num_rollouts_counters:
+                        self._num_rollouts_counters[name] = 0
+                    # increment counter
+                    self._num_rollouts_counters[name] += len(env_ids)
+                    # check if the number of episodes has passed
+                    if self._num_rollouts_counters[name] >= (4*self.num_envs):
+                        # call the event term
+                        self._num_rollouts_counters[name] = 0
+                        term_cfg = self._mode_term_cfgs["num_rollouts"][idx]
+                        term_cfg.func(self._env, env_ids, **term_cfg.params)
+                    continue
         # nothing to log here
         return {}
 
@@ -142,7 +158,7 @@ class EventManager(ManagerBase):
             carb.log_warn(f"Event mode '{mode}' is not defined. Skipping event.")
             return
         # iterate over all the event terms
-        for index, term_cfg in enumerate(self._mode_term_cfgs[mode]):
+        for index, (name, term_cfg) in enumerate(zip(self._mode_term_names[mode], self._mode_term_cfgs[mode])):
             # resample interval if needed
             if mode == "interval":
                 if dt is None:

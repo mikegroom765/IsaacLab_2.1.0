@@ -366,6 +366,14 @@ class CommandManager(ManagerBase):
         """
         return self._terms[name]
 
+    def set_term(self, name: str, term: CommandTerm):
+        """Sets the command term.
+
+        Args:
+            term: The command term to set.
+        """
+        self._terms[name] = term
+
     """
     Helper functions.
     """

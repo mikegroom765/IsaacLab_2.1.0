@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 def modify_reward_weight(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name: str, weight: float, num_steps: int):
-    """Curriculum that modifies a reward weight a given number of steps.
+    """Curriculum that modifies a reward weight after given number of steps.
 
     Args:
         env: The learning environment.
@@ -34,3 +34,40 @@ def modify_reward_weight(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_na
         # update term settings
         term_cfg.weight = weight
         env.reward_manager.set_term_cfg(term_name, term_cfg)
+
+def modify_reward_parameters(env: ManagerBasedRLEnv, env_ids: Sequence[int], term_name: str, parameters: dict, num_steps: int):
+    """Curriculum that modifies reward parameters after given number of steps.
+
+    Args:
+        env: The learning environment.
+        env_ids: Not used since all environments are affected.
+        term_name: The name of the reward term.
+        parameters: The updated parameters of the reward term.
+        num_steps: The number of steps after which the change should be applied.
+    """    
+    if env.common_step_counter > num_steps:
+        # obtain term settings
+        term_cfg = env.reward_manager.get_term_cfg(term_name)
+        # check if term_cfg.params dict has same keys as parameters
+        term_cfg.params=parameters
+        env.reward_manager.set_term_cfg(term_name, term_cfg)
+
+
+def modify_command_parameters(env: ManagerBasedRLEnv, env_ids: Sequence[int], command_name: str, parameters: dict, num_steps: int):
+    """Curriculum that modifies command parameters after given number of steps.
+
+    Args:
+        env: The learning environment.
+        env_ids: Not used since all environments are affected.
+        command_name: The name of the command.
+    """
+    if env.common_step_counter > num_steps:
+        # obtain command settings
+        command_term = env.command_manager.get_term(command_name)
+        # update command settings
+        command_term.cfg.ranges.pos_x = parameters['pos_x']
+        command_term.cfg.ranges.pos_y = parameters['pos_y']
+        command_term.cfg.ranges.pos_z = parameters['pos_z']
+
+        env.command_manager.set_term(name=command_name, term=command_term)
+        # print(f"Updated command term: {env.command_manager.get_term(command_name)}")

@@ -267,3 +267,69 @@ class MeshRepeatedCylindersTerrainCfg(MeshRepeatedObjectsTerrainCfg):
     """The box curriculum parameters at the start of the curriculum."""
     object_params_end: ObjectCfg = MISSING
     """The box curriculum parameters at the end of the curriculum."""
+
+@configclass
+class MeshCorridorTerrainCfg(SubTerrainBaseCfg):
+    """Configuration for a terrain with a corridor."""
+
+    function = mesh_terrains.corridor_terrain
+
+    corridor_width: float = MISSING
+    """The width of the corridor (in m)."""
+    corridor_height: float = MISSING
+    """The height of the corridor (in m)."""
+    corridor_length: float = MISSING
+    """The length of the corridor (in m)."""
+    num_obstacles: int = 0
+    """The number of obstacles in the corridor."""
+    box_width: float = 0.2
+    """The width of the obstacles (in m)."""
+    robot_width: float = 0.5
+    """The width of the robot (in m)."""
+    box_height: tuple[float, float] = (0.2, 1.0)
+    """The minimum and maximum height of the obstacles (in m)."""
+    wall_thickness: float = 0.1
+    """The thickness of the walls (in m)."""
+
+@configclass
+class LShapedMeshCorridorTerrainCfg(MeshCorridorTerrainCfg):
+    """Configuration for a terrain with a corridor."""
+
+    function = mesh_terrains.l_shaped_corridor_terrain
+
+@configclass
+class LiftCubeEnvTerrainCfg(SubTerrainBaseCfg):
+    """Configuration for a terrain with a cube to lift."""
+    
+    function = mesh_terrains.lift_cube_env_terrain
+
+    table_height: float = 0.5
+    """The height of the tables (in m)."""
+    table_length: float = 1.0
+    """The length of the tables (in m)."""
+    table_width: float = 3.0
+    """The width of the tables (in m)."""
+
+@configclass
+class MeshGridTerrainCfg(SubTerrainBaseCfg):
+    """Configuration for a terrain with a grid of "tables"."""
+
+    function = mesh_terrains.grid_terrain
+
+    grid_cell_width: float = MISSING
+    """The width of the grid cells (in m)."""
+    grid_cols: int = MISSING
+    """The number of cols in the grid (integer number of grid cells)."""
+    grid_rows: int = MISSING
+    """The number of rows in the grid (integer number of grid cells)."""
+    # tables_locs: list[tuple[int, int]] = MISSING
+    # """The location of the "table" grid cells. Each tuple is a pair of (row, column) indices. The indices are 0-based."""  
+    table_height_range: tuple[float, float] = MISSING
+    """The minimum and maximum height of the "table" grid cells (in m)."""
+    platform_width: float = 1.0
+    """The width of the square platform at the center of the terrain. Defaults to 1.0."""
+
+    perimeter_wall_thickness: float = 1.0
+    """The thickness of the perimeter wall (in m)."""
+
+

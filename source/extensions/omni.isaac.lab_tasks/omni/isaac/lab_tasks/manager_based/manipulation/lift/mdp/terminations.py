@@ -51,3 +51,40 @@ def object_reached_goal(
 
     # rewarded if the object is lifted above the threshold
     return distance < threshold
+
+def root_height_below_minimums(
+    env: ManagerBasedRLEnv, minimum_heights: list[float], threshold: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("object")
+) -> torch.Tensor:
+    """Terminate when the asset's root height is below the minimum height specified as a tensor, with individual elements
+    per environment.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    return asset.data.root_pos_w[:, 2] < (torch.tensor(minimum_heights, device=env.device) - threshold)
+
+def object_away_from_goal(
+    env: ManagerBasedRLEnv,
+    threshold: float,
+    command_name: str,
+    object_cfg: SceneEntityCfg = SceneEntityCfg("object"),
+) -> torch.Tensor:
+    """Check if object has gone far from the goal.
+
+    The object is considered to be out-of-reach if the distance between the goal and the object is greater
+    than the threshold.
+
+    Args:
+        env: The environment object.
+        threshold: The threshold for the distance between the robot and the object.
+        command_name: The command term to be used for extracting the goal.
+        object_cfg: The configuration for the scene entity. Default is "object".
+    """
+    # extract useful elements
+    command_term = env.command_manager.get_term(command_name)
+    asset = env.scene[object_cfg.name]
+
+    # object pos
+    asset_pos_e = asset.data.root_pos_w - env.scene.env_origins
+    goal_pos_e = command_term.command[:, :3]
+
+    return torch.norm(asset_pos_e - goal_pos_e, p=2, dim=1) > threshold

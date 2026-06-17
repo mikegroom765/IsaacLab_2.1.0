@@ -18,7 +18,7 @@ from pxr import PhysxSchema
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.assets import Articulation, ArticulationCfg, AssetBaseCfg, RigidObject, RigidObjectCfg
 from omni.isaac.lab.sensors import ContactSensorCfg, FrameTransformerCfg, SensorBase, SensorBaseCfg
-from omni.isaac.lab.terrains import TerrainImporter, TerrainImporterCfg
+from omni.isaac.lab.terrains import TerrainImporter, VariedGridTerrainImporter, TerrainImporterCfg, VariedGridTerrainImporterCfg
 
 from .interactive_scene_cfg import InteractiveSceneCfg
 
@@ -431,7 +431,13 @@ class InteractiveScene:
             # resolve regex
             asset_cfg.prim_path = asset_cfg.prim_path.format(ENV_REGEX_NS=self.env_regex_ns)
             # create asset
-            if isinstance(asset_cfg, TerrainImporterCfg):
+            if isinstance(asset_cfg, VariedGridTerrainImporterCfg):
+                print(f"Creating varied grid terrain importer for {asset_name}")
+                # terrains are special entities since they define environment origins
+                asset_cfg.num_envs = self.cfg.num_envs
+                asset_cfg.env_spacing = self.cfg.env_spacing
+                self._terrain = asset_cfg.class_type(asset_cfg)
+            elif isinstance(asset_cfg, TerrainImporterCfg):
                 # terrains are special entities since they define environment origins
                 asset_cfg.num_envs = self.cfg.num_envs
                 asset_cfg.env_spacing = self.cfg.env_spacing

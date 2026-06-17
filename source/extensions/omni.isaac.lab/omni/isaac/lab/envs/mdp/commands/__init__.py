@@ -11,6 +11,8 @@ from .commands_cfg import (
     TerrainBasedPose2dCommandCfg,
     UniformPose2dCommandCfg,
     UniformPoseCommandCfg,
+    GridUniformPoseCommandCfg,
+    GoalRegionCommandCfg,
     UniformVelocityCommandCfg,
     ScalarValueCommandCfg,
 )

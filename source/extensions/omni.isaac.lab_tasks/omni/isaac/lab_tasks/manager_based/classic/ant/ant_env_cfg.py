@@ -200,3 +200,58 @@ class AntEnvCfg(ManagerBasedRLEnvCfg):
         self.sim.physics_material.static_friction = 1.0
         self.sim.physics_material.dynamic_friction = 1.0
         self.sim.physics_material.restitution = 0.0
+
+### DPPO Configuration ###
+
+
+@configclass
+class DPPOObservationsCfg:
+    """Observation specifications for the MDP."""
+
+    @configclass
+    class DPPOPolicyCfg(ObsGroup):
+        """Observations for the policy."""
+
+        base_height = ObsTerm(func=mdp.base_pos_z)
+        base_lin_vel = ObsTerm(func=mdp.base_lin_vel)
+        base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+        base_yaw_roll = ObsTerm(func=mdp.base_yaw_roll)
+        base_angle_to_target = ObsTerm(func=mdp.base_angle_to_target, params={"target_pos": (1000.0, 0.0, 0.0)})
+        base_up_proj = ObsTerm(func=mdp.base_up_proj)
+        base_heading_proj = ObsTerm(func=mdp.base_heading_proj, params={"target_pos": (1000.0, 0.0, 0.0)})
+        joint_pos_norm = ObsTerm(func=mdp.joint_pos_limit_normalized)
+        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.2)
+        feet_body_forces = ObsTerm(
+            func=mdp.body_incoming_wrench,
+            scale=0.1,
+            params={
+                "asset_cfg": SceneEntityCfg(
+                    "robot", body_names=["front_left_foot", "front_right_foot", "left_back_foot", "right_back_foot"]
+                )
+            },
+        )
+        actions = ObsTerm(func=mdp.last_action)
+        risk_sensitibity = ObsTerm(func=mdp.generated_commands, params={"command_name": "risk_sensitivity"})
+
+        def __post_init__(self):
+            self.enable_corruption = False
+            self.concatenate_terms = True
+
+    # observation groups
+    policy: DPPOPolicyCfg = DPPOPolicyCfg()
+
+@configclass
+class DPPOCommandsCfg:
+    """Command terms for the MDP."""
+
+    risk_sensitivity = mdp.ScalarValueCommandCfg(
+        value_range=(-1.0, 1.0),
+        resampling_time_range=(10.0, 20.0),
+    )
+
+@configclass
+class DPPOAntEnvCfg(AntEnvCfg):
+    """Configuration for the MuJoCo-style Ant walking environment with DPPO."""
+
+    observations: DPPOObservationsCfg = DPPOObservationsCfg()
+    commands: DPPOCommandsCfg = DPPOCommandsCfg()

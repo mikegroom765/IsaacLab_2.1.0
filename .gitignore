@@ -76,3 +76,8 @@ docs
 *.pyc
 *.py[cod]
 **/__pycache__/
+
+experiment_logs*
+Figures/*
+models/*
+*/models/*

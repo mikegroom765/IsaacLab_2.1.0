@@ -12,14 +12,18 @@ from omni.isaac.lab_tasks.manager_based.manipulation.reach.reach_env_cfg import 
 from omni.isaac.lab.scene import InteractiveSceneCfg
 from omni.isaac.lab.assets import ArticulationCfg, AssetBaseCfg
 from omni.isaac.lab.sensors import FrameTransformerCfg, ContactSensorCfg, patterns
+from omni.isaac.lab.managers import SceneEntityCfg
+from omni.isaac.lab.managers import ObservationTermCfg as ObsTerm
 from omni.isaac.lab.sensors.frame_transformer.frame_transformer_cfg import OffsetCfg
 import omni.isaac.lab.sim as sim_utils
 from omni.isaac.lab.sensors import TiledCameraCfg
+from omni.isaac.lab.utils.assets import ISAAC_NUCLEUS_DIR
+
 
 ##
 # Pre-defined configs
 ##
-from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG, HSRB_TILED_DEPTH_CAMERA_CFG, HSRB_DEFAULT_CAMERA_INTRINSICS  # isort:skip 
+from omni.isaac.lab_assets.hsrb import HSRB_CFG, HSRB_LIDAR_CFG, HSRB_DEPTH_CAMERA_CFG, HSRB_TILED_DEPTH_CAMERA_CFG, HSRB_DEFAULT_CAMERA_INTRINSICS, HSRB_SCANDOTS_CFG  # isort:skip 
 from omni.isaac.lab.markers.config import FRAME_MARKER_CFG  # isort: skip
 
 
@@ -43,15 +47,16 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         self.actions.arm_action = mdp.RelativeJointPositionActionCfg(
             asset_name="robot", joint_names=["arm_lift_joint", "arm_flex_joint", "arm_roll_joint", "wrist_flex_joint", "wrist_roll_joint"], scale=1.0, debug_vis=True
         )
-        self.actions.base_action = mdp.JointVelocityActionCfg(
+        self.actions.base_action = mdp.MimicPureJointVelocityActionCfg(
             asset_name="robot", joint_names=["joint_x", "joint_y", "joint_rz"], use_default_offset=True, scale=1.0, debug_vis=True
         )
-        self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
-            asset_name="robot",
-            joint_names=["hand_l_proximal_joint", "hand_r_proximal_joint"], 
-            open_command_expr={"hand_l_proximal_joint": 1.2, "hand_r_proximal_joint": 1.2}, # 0.75 # revolute joint in articulation has a limit of 1.24 radians (71 degrees)
-            close_command_expr={"hand_l_proximal_joint": 0.0, "hand_r_proximal_joint": 0.0}
-        )
+        # Gripper action is not needed in a reach task!
+        # self.actions.gripper_action = mdp.BinaryJointPositionActionCfg(
+        #     asset_name="robot",
+        #     joint_names=["hand_l_proximal_joint", "hand_r_proximal_joint"], 
+        #     open_command_expr={"hand_l_proximal_joint": 1.2, "hand_r_proximal_joint": 1.2}, # 0.75 # revolute joint in articulation has a limit of 1.24 radians (71 degrees)
+        #     close_command_expr={"hand_l_proximal_joint": 0.0, "hand_r_proximal_joint": 0.0}
+        # )
         # self.actions.head_action = mdp.RelativeJointPositionActionCfg(
         #     asset_name="robot", joint_names=["head_pan_joint", "head_tilt_joint"], scale=1.0, debug_vis=True
         # )
@@ -61,18 +66,18 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
         # self.commands.ee_pose.ranges.pitch = (math.pi, math.pi)
 
 
-        self.rewards.gripper_close_reward.params["open_joint_pos"] = 1.1
-        self.rewards.gripper_close_reward.params["distance_threshold"] = 0.1
-        self.rewards.gripper_close_reward.params["orientation_threshold"] = 0.2
-        self.rewards.gripper_close_reward.params["asset_cfg"].joint_names = ["hand_l_proximal_joint", "hand_r_proximal_joint"]
+        # self.rewards.gripper_close_reward.params["open_joint_pos"] = 1.1
+        # self.rewards.gripper_close_reward.params["distance_threshold"] = 1.5 # 0.1 
+        # self.rewards.gripper_close_reward.params["orientation_threshold"] = 2.0 # 0.2
+        # self.rewards.gripper_close_reward.params["asset_cfg"].joint_names = ["hand_l_proximal_joint", "hand_r_proximal_joint"]
 
-        # # overwrite reward term parameters for is_goal_in_camera_view to use the when there is no TiledCamera in the scene
-        self.rewards.is_goal_in_camera_view.params["camera_intrinsics"] = HSRB_DEFAULT_CAMERA_INTRINSICS
+        # overwrite reward term parameters for is_goal_in_camera_view to use the when there is no TiledCamera in the scene
+        # self.rewards.is_goal_in_camera_view.params["camera_intrinsics"] = HSRB_DEFAULT_CAMERA_INTRINSICS
 
         # Listen for the required transforms (end-effector)
         self.scene.ee_frame = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/base_link",
-            debug_vis=False,
+            prim_path="{ENV_REGEX_NS}/Robot/base_footprint",
+            debug_vis=True,
             visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/EndEffectorFrameTransformer"),
             target_frames=[
                 FrameTransformerCfg.FrameCfg(
@@ -85,27 +90,38 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
             ],
         )
 
-        self.scene.depth_camera_frame = FrameTransformerCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/base_footprint",
-            debug_vis=False,
-            visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/DepthCameraFrameTransformer"),
-            target_frames=[
-                FrameTransformerCfg.FrameCfg(
-                    prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
-                    name="depth_camera",
-                    offset=OffsetCfg(
-                        pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0),
-                    ),
-                ),
-            ],
-        )
+        # self.scene.depth_camera_frame = FrameTransformerCfg(
+        #     prim_path="{ENV_REGEX_NS}/Robot/base_footprint",
+        #     debug_vis=False,
+        #     visualizer_cfg=FRAME_MARKER_SMALL_CFG.replace(prim_path="/Visuals/DepthCameraFrameTransformer"),
+        #     target_frames=[
+        #         FrameTransformerCfg.FrameCfg(
+        #             prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
+        #             name="depth_camera",
+        #             offset=OffsetCfg(
+        #                 pos=(0.0, 0.0, 0.0), rot=(1.0, 0.0, 0.0, 0.0),
+        #             ),
+        #         ),
+        #     ],
+        # )
 
         # add lidar
-        self.scene.lidar = HSRB_LIDAR_CFG.copy()
+        # self.scene.lidar = HSRB_LIDAR_CFG.copy()
+
+        # priviledged scandots
+        # add scandots sensor
+        # self.scene.scandots = HSRB_SCANDOTS_CFG.copy()
+        # # add scandots sensor to observations
+        # self.observations.depth.scandots = ObsTerm(
+        #     func=mdp.masked_scan_dot_points,
+        #     params={"sensor_cfg": SceneEntityCfg("scandots"), "camera_frame_name": "depth_camera_frame", "camera_intrinsics": HSRB_DEFAULT_CAMERA_INTRINSICS},
+        # )
+        # self.observations.depth.scandots.params["camera_intrinsics"] = HSRB_DEFAULT_CAMERA_INTRINSICS
+        # self.observations.depth.scandots.params["camera_frame_name"] = "depth_camera_frame"
 
         # add depth camera
         # self.scene.depth_camera = HSRB_DEPTH_CAMERA_CFG.copy()
-        self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
+        # self.scene.depth_camera_tiled = HSRB_TILED_DEPTH_CAMERA_CFG.copy()
 
         if self.scene.depth_camera_tiled is None:
             # for some reason the tiled depth camera spawn their own lights?
@@ -124,8 +140,8 @@ class HSRBReachEnvCfg(MobileReachEnvCfg):
             resampling_time_range=(50.0, 100.0),
             debug_vis=True,
             ranges=mdp.UniformPoseCommandCfg.Ranges(
-                pos_x=(-3.5,3.5),
-                pos_y=(-3.5, 3.5),
+                pos_x=(-1.0, 1.0),
+                pos_y=(-1.0, 1.0),
                 pos_z=(0.2, 1.4),
                 roll=(-math.pi, math.pi),
                 pitch=(math.pi/2, math.pi/2),  # depends on end-effector axis

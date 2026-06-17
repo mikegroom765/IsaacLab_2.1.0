@@ -281,3 +281,14 @@ class TerminationTermCfg(ManagerTermBaseCfg):
     Note:
         These usually correspond to tasks that have a fixed time limit.
     """
+
+@configclass
+class IllegalContactTerminationTermCfg(TerminationTermCfg):
+    """Configuration for a termination term that terminates the episode when illegal contact is detected.
+    
+    Done seperately to allow penalties to be applied for illegal contact terminations specifically, so
+    we don't apply a termination penalty for goal success. Also will allow padding alive penalty only in
+    the termination case.
+    """
+
+    illegal_contact_terminated: bool = False

@@ -191,6 +191,20 @@ class JointVelocityAction(JointAction):
         # set joint velocity targets
         self._asset.set_joint_velocity_target(self.processed_actions, joint_ids=self._joint_ids)
 
+class MimicPureJointVelocityAction(JointVelocityAction):
+    """Joint action term that applies the processed actions to the articulation's joints as velocity commands.
+
+    This action term also continually updates the joint position target setpoint based on the current joint velocities.
+    Over very short time steps, this can be used to mimic a pure velocity control scheme.
+    """
+
+    def apply_actions(self):
+
+        # calculate updated positions based on the current joint velocities
+        position_targets = self._asset.data.joint_pos[:, self._joint_ids] + self.processed_actions * self._env.physics_dt
+        # set joint position and velocity targets
+        self._asset.set_joint_position_target(position_targets, joint_ids=self._joint_ids)
+        self._asset.set_joint_velocity_target(self.processed_actions, joint_ids=self._joint_ids)
 
 class JointEffortAction(JointAction):
     """Joint action term that applies the processed actions to the articulation's joints as effort commands."""

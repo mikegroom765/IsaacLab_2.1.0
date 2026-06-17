@@ -22,9 +22,9 @@ There are two main components in this package:
 """
 
 from .height_field import *  # noqa: F401, F403
-from .terrain_generator import TerrainGenerator
-from .terrain_generator_cfg import FlatPatchSamplingCfg, SubTerrainBaseCfg, TerrainGeneratorCfg
-from .terrain_importer import TerrainImporter
-from .terrain_importer_cfg import TerrainImporterCfg
+from .terrain_generator import TerrainGenerator, VariedGridTerrainGenerator
+from .terrain_generator_cfg import FlatPatchSamplingCfg, SubTerrainBaseCfg, TerrainGeneratorCfg, VariedGridTerrainGeneratorCfg
+from .terrain_importer import TerrainImporter, VariedGridTerrainImporter
+from .terrain_importer_cfg import TerrainImporterCfg, VariedGridTerrainImporterCfg
 from .trimesh import *  # noqa: F401, F403
 from .utils import color_meshes_by_height, create_prim_from_mesh

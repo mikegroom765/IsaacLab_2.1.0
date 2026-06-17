@@ -24,6 +24,8 @@ with contextlib.suppress(ModuleNotFoundError):
     import isaacsim  # noqa: F401
 
 from omni.isaac.kit import SimulationApp
+import cProfile
+import pstats
 
 
 class AppLauncher:
@@ -46,7 +48,7 @@ class AppLauncher:
 
     """
 
-    def __init__(self, launcher_args: argparse.Namespace | dict | None = None, **kwargs):
+    def __init__(self, launcher_args: argparse.Namespace | dict | None = None, profiler: cProfile.Profile | None = None, **kwargs):
         """Create a `SimulationApp`_ instance based on the input settings.
 
         Args:
@@ -117,6 +119,7 @@ class AppLauncher:
         self._hide_stop_button()
 
         # Set up signal handlers for graceful shutdown
+        self._profiler = profiler
         # -- during interrupts
         signal.signal(signal.SIGINT, self._interrupt_signal_handle_callback)
         # -- during explicit `kill` commands
@@ -618,8 +621,26 @@ class AppLauncher:
                 play_button_group._stop_button.enabled = False  # type: ignore
                 play_button_group._stop_button = None  # type: ignore
 
-    def _interrupt_signal_handle_callback(self, signal, frame):
+    def save_profiling_data(self):
+        """Disable profiling and save stats to a file when the script exits."""
+        if self._profiler is None:
+            return
+        self._profiler.disable()
+        print(f"[INFO] Saving profiling data to profile.prof")
+
+        ps = pstats.Stats(self._profiler)
+        # Optional: strip directory paths to make output shorter
+        # ps.strip_dirs()
+        # # Sort by cumulative time in function
+        # ps.sort_stats("cumulative")
+        # Print stats to the file
+        ps.dump_stats("profile.prof")
+        # print filepath of the saved profile
+        print(f"[INFO] Profiling data saved to profile.prof")
+
+    def _interrupt_signal_handle_callback(self, signum, frame):
         """Handle the interrupt signal from the keyboard."""
+        self.save_profiling_data()
         # close the app
         self._app.close()
         # raise the error for keyboard interrupt

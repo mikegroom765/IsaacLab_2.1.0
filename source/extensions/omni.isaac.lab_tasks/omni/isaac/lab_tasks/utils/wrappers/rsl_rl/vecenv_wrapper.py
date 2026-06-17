@@ -76,7 +76,8 @@ class RslRlVecEnvWrapper(VecEnv):
             self.num_obs = self.unwrapped.observation_manager.group_obs_dim["policy"][0]
             # check if depth is present
             if "depth" in self.unwrapped.observation_manager.group_obs_dim.keys():
-                self.num_obs += (self.unwrapped.observation_manager.group_obs_dim["depth"][0] * self.unwrapped.observation_manager.group_obs_dim["depth"][1])
+                if "depth_camera_tiled" in self.unwrapped.observation_manager.group_obs_dim['depth']:
+                    self.num_obs += (self.unwrapped.observation_manager.group_obs_dim["depth"][0] * self.unwrapped.observation_manager.group_obs_dim["depth"][1])
                 
         else:
             self.num_obs = self.unwrapped.num_observations
@@ -86,6 +87,11 @@ class RslRlVecEnvWrapper(VecEnv):
             and "critic" in self.unwrapped.observation_manager.group_obs_dim
         ):
             self.num_privileged_obs = self.unwrapped.observation_manager.group_obs_dim["critic"][0]
+        if (
+            hasattr(self.unwrapped, "observation_manager")
+            and "critic_policy" in self.unwrapped.observation_manager.group_obs_dim
+        ):
+            self.num_privileged_obs = self.unwrapped.observation_manager.group_obs_dim["critic_policy"][0]
         elif hasattr(self.unwrapped, "num_states"):
             self.num_privileged_obs = self.unwrapped.num_states
         else:

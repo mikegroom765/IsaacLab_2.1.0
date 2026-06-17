@@ -20,6 +20,7 @@ from omni.isaac.lab.managers import CommandManager, CurriculumManager, RewardMan
 from .common import VecEnvStepReturn
 from .manager_based_env import ManagerBasedEnv
 from .manager_based_rl_env_cfg import ManagerBasedRLEnvCfg
+from omni.isaac.lab.utils.noise import NoiseModel
 
 
 class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
@@ -75,6 +76,12 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         super().__init__(cfg=cfg)
         # store the render mode
         self.render_mode = render_mode
+
+        # setup noise cfg for adding action and observation noise
+        if self.cfg.action_noise_model:
+            self._action_noise_model: NoiseModel = self.cfg.action_noise_model.class_type(
+                self.num_envs, self.cfg.action_noise_model, self.device
+            )
 
         # initialize data and constants
         # -- counter for curriculum
@@ -148,6 +155,9 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         Returns:
             A tuple containing the observations, rewards, resets (terminated and truncated) and extras.
         """
+        if self.cfg.action_noise_model:
+            action = self._action_noise_model.apply(action.clone())
+
         # process actions
         self.action_manager.process_action(action)
 
@@ -345,3 +355,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
 
         # reset the episode length buffer
         self.episode_length_buf[env_ids] = 0
+
+        # reset noise models
+        if self.cfg.action_noise_model:
+            self._action_noise_model.reset(env_ids)

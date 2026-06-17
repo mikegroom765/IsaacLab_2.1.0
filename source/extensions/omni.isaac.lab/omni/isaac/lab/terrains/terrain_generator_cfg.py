@@ -180,3 +180,12 @@ class TerrainGeneratorCfg:
 
     cache_dir: str = "/tmp/isaaclab/terrains"
     """The directory where the terrain cache is stored. Defaults to "/tmp/isaaclab/terrains"."""
+
+@configclass
+class VariedGridTerrainGeneratorCfg(TerrainGeneratorCfg):
+    
+    table_locs: list[list[tuple[int, int]]] | None = None 
+    
+    table_heights: list[float] | None = None 
+    
+    random_sample: bool = True

@@ -851,3 +851,341 @@ def repeated_objects_terrain(
     # meshes_list.append(platform)
 
     return meshes_list, origin
+
+def lift_cube_env_terrain(
+    cfg: mesh_terrains_cfg.LiftCubeEnvTerrainCfg,
+) -> tuple[list[trimesh.Trimesh], np.ndarray]:
+    """Generate a simple terrain of boxes (tables) of varying heights.
+    
+    Args:
+        table_height: The height of the table (in m).
+        
+    Returns:
+        A tuple containing the tri-mesh of the terrain and the origin of the terrain (in m).
+    """
+    
+    table_height = cfg.table_height
+    table = trimesh.creation.box([cfg.table_length, cfg.table_width, table_height])
+    table.apply_translation([0.8 * cfg.size[0], 0.5 * cfg.size[1], 0.5 * table_height])
+    ground_plane = make_plane(cfg.size, height=0.0, center_zero=False)
+    
+    meshes_list = [table, ground_plane]
+    meshes = trimesh.util.concatenate(meshes_list)
+    
+    origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.0))
+    
+    return meshes, origin
+    
+
+def make_straight_corridor(
+    width: float,
+    length: float,
+    height: float,
+    thickness: float,
+    x: float,
+    y: float,
+) -> trimesh.Trimesh:
+    """Generate a straight corridor mesh. Corridor is made of four walls, with the end walls being solid.
+
+    Args:
+        width: The width of the corridor (in m).
+        length: The length of the corridor (in m).
+        height: The height of the corridor (in m).
+
+    Returns:
+        A trimesh.Trimesh object for the corridor.
+    """
+    pos = (0.75 * x, 0.5 * y, 0.0)
+
+    # create walls of the corridor
+    # -- side walls
+    left_side_wall_mesh = trimesh.creation.box([length, thickness, height])
+    left_side_wall_mesh.apply_translation([0, width / 2, 0])
+    left_side_wall_mesh.apply_translation(pos)
+    right_side_wall_mesh = trimesh.creation.box([length, thickness, height])
+    right_side_wall_mesh.apply_translation([0, -width / 2, 0])
+    right_side_wall_mesh.apply_translation(pos)
+    # -- end wall
+    front_end_wall_mesh = trimesh.creation.box([thickness, width, height])
+    front_end_wall_mesh.apply_translation([length / 2, 0, 0])
+    front_end_wall_mesh.apply_translation(pos)
+    back_end_wall_mesh = trimesh.creation.box([thickness, width, height])
+    back_end_wall_mesh.apply_translation([-length / 2, 0, 0])
+    back_end_wall_mesh.apply_translation(pos)
+    # combine the walls
+    corridor_mesh = trimesh.util.concatenate([left_side_wall_mesh, right_side_wall_mesh, front_end_wall_mesh, back_end_wall_mesh])
+
+    return corridor_mesh
+
+def corridor_terrain(
+    difficulty: int, cfg: mesh_terrains_cfg.MeshCorridorTerrainCfg
+) -> tuple[list[trimesh.Trimesh], np.ndarray]:
+    """Generate a terrain with boxes (similar to a pyramid).
+
+    The terrain has a ground with boxes on top of it that are stacked on top of each other.
+    The boxes are created by extruding a rectangle along the z-axis. If :obj:`double_box` is True,
+    then two boxes of height :obj:`box_height` are stacked on top of each other.
+
+    .. image:: ../../_static/terrains/trimesh/box_terrain.jpg
+       :width: 40%
+
+    .. image:: ../../_static/terrains/trimesh/box_terrain_with_two_boxes.jpg
+       :width: 40%
+
+    Args:
+        cfg: The configuration for the terrain.
+
+    Returns:
+        A tuple containing the tri-mesh of the terrain and the origin of the terrain (in m).
+    """
+
+    # initialize list of meshes
+    meshes_list = list()
+    # extract quantities
+    width = cfg.corridor_width
+    length = cfg.corridor_length
+    height = cfg.corridor_height
+    thickness = cfg.wall_thickness
+    box_width = cfg.box_width
+    num_boxes = cfg.num_obstacles
+    robot_width = cfg.robot_width
+
+    box_centers = np.zeros((num_boxes, 3))
+    pos = []
+    gap = robot_width + 2 * np.sqrt((2 * ((box_width/2)**2)))
+    print(f"gap: {gap}")
+
+    def euclidean_distance(point1, point2):
+        return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
+    def check_points_distance(points, threshold):
+        num_points = len(points)
+        for i in range(num_points):
+            for j in range(i + 1, num_points):
+                if euclidean_distance(points[i], points[j]) < threshold:
+                    return False
+        return True
+
+    while True:
+        for i in range(num_boxes):
+            box_height = np.random.uniform(cfg.box_height[0], cfg.box_height[1])
+            box_centers[i, 0] = np.random.uniform(0.6 * cfg.size[0], 0.9 * cfg.size[0])
+            box_centers[i, 1] = np.random.uniform(0.5 * cfg.size[1] - width/2, 0.5 * cfg.size[1] + width/2)
+            box_centers[i, 2] = 0.5 * box_height
+            pos.append((box_centers[i, 0], box_centers[i, 1], box_centers[i, 2]))
+
+        # check if space between every box is enough for the robot to pass
+        if check_points_distance(pos, gap):
+            break
+        else:
+            pos = []
+
+    for i in range(num_boxes):
+        box_mesh = trimesh.creation.box((box_width, box_width, 2*pos[i][2]), trimesh.transformations.translation_matrix(pos[i]))
+        meshes_list.append(box_mesh)
+
+    # Generate the corridor
+    corridor_mesh = make_straight_corridor(width, length, height, thickness, cfg.size[0], cfg.size[1])
+    meshes_list.append(corridor_mesh)
+    # Generate the ground
+     # generate a ground plane for the terrain
+    ground_plane = make_plane(cfg.size, height=0.0, center_zero=False)
+    meshes_list.append(ground_plane)
+    # specify the origin of the terrain
+    origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.0))
+
+    return meshes_list, origin
+
+def make_l_corridor(
+    width: float,
+    length: float,
+    height: float,
+    thickness: float,
+    x: float,
+    y: float,
+) -> trimesh.Trimesh:
+    """Generate a l shaped corridor mesh. Corridor is made of 6 walls, with the end walls being solid.
+
+    Args:
+        width: The width of the corridor (in m).
+        length: The length of the corridor (in m).
+        height: The height of the corridor (in m).
+
+    Returns:
+        A trimesh.Trimesh object for the corridor.
+    """
+    pos = (0.75 * x, 0.5 * y, 0.0)
+
+    # create walls of the corridor
+    wall1_mesh = trimesh.creation.box([length, thickness, height])
+    wall1_mesh.apply_translation([0, width / 2, 0])
+    wall1_mesh.apply_translation(pos)
+
+    wall2_mesh = trimesh.creation.box([thickness, length, height])
+    wall2_mesh.apply_translation([length/2, -(length-width) / 2, 0])
+    wall2_mesh.apply_translation(pos)
+
+    wall3_mesh = trimesh.creation.box([width, thickness, height])
+    wall3_mesh.apply_translation([(length - width) / 2, -length + (width / 2), 0])
+    wall3_mesh.apply_translation(pos)
+
+    wall4_mesh = trimesh.creation.box([thickness, (length-width), height])
+    wall4_mesh.apply_translation([(length/2) - width, -length/2, 0])
+    wall4_mesh.apply_translation(pos)
+
+    wall5_mesh = trimesh.creation.box([(length-width+thickness), thickness, height])
+    wall5_mesh.apply_translation([-0.5 * width, -0.5 * width, 0])
+    wall5_mesh.apply_translation(pos)
+
+    wall6_mesh = trimesh.creation.box([thickness, width, height])
+    wall6_mesh.apply_translation([-length / 2, 0, 0])
+    wall6_mesh.apply_translation(pos)
+
+    # combine the walls
+    corridor_mesh = trimesh.util.concatenate([wall1_mesh, wall2_mesh, wall3_mesh, wall4_mesh, wall5_mesh, wall6_mesh])
+
+    return corridor_mesh
+
+def l_shaped_corridor_terrain(
+    difficulty: int, cfg: mesh_terrains_cfg.LShapedMeshCorridorTerrainCfg
+) -> tuple[list[trimesh.Trimesh], np.ndarray]:
+    """This function generates an L shaped corridor terrain. """
+
+    # initialize list of meshes
+    meshes_list = list()
+    # extract quantities
+    width = cfg.corridor_width
+    length = cfg.corridor_length
+    height = cfg.corridor_height
+    thickness = cfg.wall_thickness
+    box_width = cfg.box_width
+    num_boxes = cfg.num_obstacles
+    robot_width = cfg.robot_width
+
+    box_centers = np.zeros((num_boxes, 3))
+    pos = []
+    gap = robot_width + 2 * np.sqrt((2 * ((box_width/2)**2)))
+    print(f"gap: {gap}")
+
+    def euclidean_distance(point1, point2):
+        return np.sqrt((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+
+    def check_points_distance(points, threshold):
+        num_points = len(points)
+        for i in range(num_points):
+            for j in range(i + 1, num_points):
+                if euclidean_distance(points[i], points[j]) < threshold:
+                    return False
+        return True
+
+    # Sample integer between 1 and num_boxes
+    num_boxes_around_corner = np.random.randint(1, num_boxes)
+    num_boxes_not_around_corner = num_boxes - num_boxes_around_corner
+
+    while True:
+        for i in range(num_boxes_not_around_corner):
+            print(f"Sampling boxs not around corner")
+            box_height = np.random.uniform(cfg.box_height[0], cfg.box_height[1])
+            box_centers[i, 0] = np.random.uniform(0.6 * cfg.size[0], 1.1 * cfg.size[0])
+            box_centers[i, 1] = np.random.uniform(0.5 * cfg.size[1] - width/2, 0.5 * cfg.size[1] + width/2)
+            box_centers[i, 2] = 0.5 * box_height
+            pos.append((box_centers[i, 0], box_centers[i, 1], box_centers[i, 2]))
+
+        
+        for i in range(num_boxes_around_corner):
+            print(f"Sampling boxs around corner")
+            box_height = np.random.uniform(cfg.box_height[0], cfg.box_height[1])
+            box_centers[num_boxes_not_around_corner + i, 0] = np.random.uniform(0.75 * cfg.size[0], 1.1 * cfg.size[0]) # 0.75
+            box_centers[num_boxes_not_around_corner + i, 1] = np.random.uniform(0.5 * cfg.size[1] + width/2, 0.5 * cfg.size[1] + width/2 - length + 1)
+            box_centers[num_boxes_not_around_corner + i, 2] = 0.5 * box_height
+            pos.append((box_centers[num_boxes_not_around_corner + i, 0], box_centers[num_boxes_not_around_corner + i, 1], box_centers[num_boxes_not_around_corner + i, 2]))
+
+        # check if space between every box is enough for the robot to pass
+        if check_points_distance(pos, gap):
+            print(f"Space between boxes is enough")
+            break
+        else:
+            pos = []
+
+    for i in range(num_boxes):
+        print(f"Creating box {i}")
+        box_mesh = trimesh.creation.box((box_width, box_width, 2*pos[i][2]), trimesh.transformations.translation_matrix(pos[i]))
+        meshes_list.append(box_mesh)
+
+    # Generate the corridor
+    corridor_mesh = make_l_corridor(width, length, height, thickness, cfg.size[0], cfg.size[1])
+    meshes_list.append(corridor_mesh)
+    # Generate the ground
+     # generate a ground plane for the terrain
+    ground_plane = make_plane(cfg.size, height=0.0, center_zero=False)
+    meshes_list.append(ground_plane)
+    # specify the origin of the terrain
+    origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.0))
+
+    return meshes_list, origin
+
+
+def grid_terrain(
+    tables_locs: list[tuple[int, int]], cfg: mesh_terrains_cfg.MeshGridTerrainCfg
+) -> tuple[list[trimesh.Trimesh], np.ndarray]:
+    """This function generates a grid terrain. """
+
+    # initialize list of meshes
+    meshes_list = list()
+    # extract quantities
+    grid_cell_width = cfg.grid_cell_width
+    grid_rows = cfg.grid_rows
+    grid_cols = cfg.grid_cols
+    # tables_locs = cfg.tables_locs
+    table_height_range = cfg.table_height_range
+    perimeter_wall_thickness = cfg.perimeter_wall_thickness
+
+    # # Add a cube at the origin 
+    # origin_pos = (0.5 * cfg.size[0], 0.5 * cfg.size[1], 3.0)
+    # origin_mesh = trimesh.creation.box((grid_cell_width, grid_cell_width, 6.0), trimesh.transformations.translation_matrix(origin_pos))
+    # meshes_list.append(origin_mesh)
+
+    # Generate the perimeter walls
+    a = 0.5*cfg.size[0]
+    b = 0.5*cfg.size[1]
+    c = grid_cols * grid_cell_width/2
+    d = perimeter_wall_thickness/2
+    e = grid_cell_width/2
+
+    # Generate the grid
+    for loc in tables_locs:
+        table_height = np.random.uniform(table_height_range[0], table_height_range[1])
+        if loc[0] > grid_rows or loc[1] > grid_cols:
+            raise ValueError(f"Table location {loc} is out of grid bounds.")
+        # pos = (loc[0] * grid_cell_width, loc[1] * grid_cell_width, 0.5 * table_height)
+        pos = (b-c+e+2*loc[0]*e, a-c+e+2*loc[1]*e, 0.5 * table_height)
+        table_mesh = trimesh.creation.box((grid_cell_width, grid_cell_width, table_height), trimesh.transformations.translation_matrix(pos))
+        meshes_list.append(table_mesh)
+
+    ## Left wall 
+    pos_left = (b, a-c-d, 1.0)
+    wall_left_mesh = trimesh.creation.box([2*c+4*d, 2*d, 2.0], trimesh.transformations.translation_matrix(pos_left))
+    meshes_list.append(wall_left_mesh)
+    ## Top wall
+    pos_top = (b-c-d, a, 1.0)
+    wall_top_mesh = trimesh.creation.box([2*d, 2*c+4*d, 2.0], trimesh.transformations.translation_matrix(pos_top))
+    meshes_list.append(wall_top_mesh)
+    ## Right wall
+    pos_right = (b, a+c+d, 1.0)
+    wall_right_mesh = trimesh.creation.box([2*c+4*d, 2*d, 2.0], trimesh.transformations.translation_matrix(pos_right))
+    meshes_list.append(wall_right_mesh)
+    ## Bottom wall
+    pos_bottom = (b+c+d, a, 1.0)
+    wall_bottom_mesh = trimesh.creation.box([2*d, 2*c+4*d, 2.0], trimesh.transformations.translation_matrix(pos_bottom))
+    meshes_list.append(wall_bottom_mesh)
+
+    # Add a ground plane
+    ground_plane = make_plane(cfg.size, height=0.0, center_zero=False)
+    meshes_list.append(ground_plane)
+    # specify the origin of the terrain
+    origin = np.asarray((0.5 * cfg.size[0], 0.5 * cfg.size[1], 0.0))
+
+    # # Concatenate the meshes
+    # trimesh.util.concatenate([wall_left_mesh, wall_top_mesh, wall_right_mesh, wall_bottom_mesh])
+
+    return meshes_list, origin

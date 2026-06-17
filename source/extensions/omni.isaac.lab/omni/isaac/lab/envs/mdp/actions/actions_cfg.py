@@ -9,7 +9,7 @@ from omni.isaac.lab.controllers import DifferentialIKControllerCfg
 from omni.isaac.lab.managers.action_manager import ActionTerm, ActionTermCfg
 from omni.isaac.lab.utils import configclass
 
-from . import binary_joint_actions, joint_actions, joint_actions_to_limits, non_holonomic_actions, task_space_actions
+from . import give_up_actions, hsr_actions,  binary_joint_actions, joint_actions, joint_actions_to_limits, non_holonomic_actions, task_space_actions
 
 ##
 # Joint actions.
@@ -73,6 +73,23 @@ class JointVelocityActionCfg(JointActionCfg):
     """
 
     class_type: type[ActionTerm] = joint_actions.JointVelocityAction
+
+    use_default_offset: bool = True
+    """Whether to use default joint velocities configured in the articulation asset as offset.
+    Defaults to True.
+
+    This overrides the settings from :attr:`offset` if set to True.
+    """
+
+
+@configclass
+class MimicPureJointVelocityActionCfg(JointActionCfg):
+    """Configuration for the mimic pute joint velocity action term.
+
+    See :class:`JointVelocityAction` for more details.
+    """
+
+    class_type: type[ActionTerm] = joint_actions.MimicPureJointVelocityAction
 
     use_default_offset: bool = True
     """Whether to use default joint velocities configured in the articulation asset as offset.
@@ -178,6 +195,58 @@ class BinaryJointVelocityActionCfg(BinaryJointActionCfg):
 
     class_type: type[ActionTerm] = binary_joint_actions.BinaryJointVelocityAction
 
+
+##
+# Give up actions.
+##
+
+@configclass
+class GiveUpActionCfg(ActionTermCfg):
+    """Configuration for the give up action term.
+
+    See :class:`GiveUpAction` for more details.
+    """
+
+    class_type: type[ActionTerm] = give_up_actions.GiveUpAction
+
+
+##
+# HSR actions.
+##
+
+@configclass
+class HSRBaseVelocityControlCfg(ActionTermCfg):
+    """Configuration for the HSR holonomic action term.
+
+    See :class:`HSRHolonomicAction` for more details.
+    """
+
+    class_type: type[ActionTerm] = hsr_actions.HSRBaseVelocityControl
+
+    joint_names: list[str] = MISSING
+    """List of joint names or regex expressions that the action will be mapped to."""
+    scale: float | dict[str, float] = 1.0
+    """Scale factor for the action (float or dict of regex expressions). Defaults to 1.0."""
+    offset: float | dict[str, float] = 0.0
+    """Offset factor for the action (float or dict of regex expressions). Defaults to 0.0."""
+    
+@configclass
+class HSRGripperActionCfg(ActionTermCfg):
+    """Configuration for the HSR gripper action term.
+
+    See :class:`HSRGripperAction` for more details.
+    """
+
+    class_type: type[ActionTerm] = hsr_actions.HSRGripperAction
+    
+@configclass
+class HSRBBinaryGripperActionCfg(ActionTermCfg):
+    """Configuration for the HSR binary gripper action term.
+
+    See :class:`HSRBBinaryGripperAction` for more details.
+    """
+    
+    class_type: type[ActionTerm] = hsr_actions.HSRBBinaryGripperAction
 
 ##
 # Non-holonomic actions.

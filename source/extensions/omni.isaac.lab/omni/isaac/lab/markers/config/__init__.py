@@ -87,6 +87,28 @@ GREEN_ARROW_X_MARKER_CFG = VisualizationMarkersCfg(
 )
 """Configuration for the green arrow marker (along x-direction)."""
 
+RED_ARROW_NEGATIVE_Y_MARKER_CFG = VisualizationMarkersCfg(
+    markers={
+        "arrow": sim_utils.UsdFileCfg(
+            usd_path=f"/workspace/isaaclab/source/standalone/hsrb/arrow_negative_y.usd",
+            scale=(0.1, 0.1, 0.1),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
+        )
+    }
+)
+"""Configuration for the red arrow marker (along negative y-direction)."""
+
+RED_ARROW_Y_MARKER_CFG = VisualizationMarkersCfg(
+    markers={
+        "arrow": sim_utils.UsdFileCfg(
+            usd_path=f"/workspace/isaaclab/source/standalone/hsrb/arrow_y.usd",
+            scale=(0.1, 0.1, 0.1),
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
+        )
+    }
+)
+"""Configuration for the red arrow marker (along y-direction)."""
+
 
 ##
 # Goals.
@@ -100,6 +122,34 @@ CUBOID_MARKER_CFG = VisualizationMarkersCfg(
         ),
     }
 )
+
+GOAL_REGION_MARKER_FAR_CFG = VisualizationMarkersCfg(
+    markers={
+        "goal_region_inside": sim_utils.SphereCfg(
+            radius=0.1,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+        ),
+        "goal_region_outside": sim_utils.SphereCfg(
+            radius=0.1,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
+        ),
+    }
+)
+
+GOAL_REGION_MARKER_CLOSE_CFG = VisualizationMarkersCfg(
+    markers={
+        "goal_region_inside": sim_utils.SphereCfg(
+            radius=0.1,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.0, 1.0, 0.0)),
+        ),
+        "goal_region_outside": sim_utils.SphereCfg(
+            radius=0.1,
+            visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 0.0, 0.0)),
+        ),
+    }
+)
+
+
 """Configuration for the cuboid marker."""
 
 POSITION_GOAL_MARKER_CFG = VisualizationMarkersCfg(

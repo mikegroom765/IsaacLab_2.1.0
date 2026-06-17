@@ -23,56 +23,76 @@ import torch
 
 HSRB_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        # usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s.usd",
-        usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s_no_pan_tilt.usd",
+        usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s.usd",
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
-            enabled_self_collisions=False,
+            # enabled_self_collisions=False,
             solver_position_iteration_count=4,
             solver_velocity_iteration_count=4,
             sleep_threshold=0.005,
             stabilization_threshold=0.001,
+            # fix_root_link=False,
+            # articulation_enabled=True,
         ),
+        joint_drive_props=sim_utils.JointDrivePropertiesCfg(drive_type="force"),
         activate_contact_sensors=True,
+        collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True,contact_offset=0.001, rest_offset=0.0),
     ),
     init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.01),
         joint_pos={
-            "wrist_roll_joint": 0.5,
-            "wrist_flex_joint": -0.392699,
+            "wrist_roll_joint": 0.0,
+            "wrist_flex_joint": 0.0, # -0.392699,
             "arm_roll_joint": 0.0,
             "arm_flex_joint": -1.570796,
-            "arm_lift_joint": 0.1,
-            "torso_lift_joint": 0.1,
+            "arm_lift_joint": 0.3,
+            "torso_lift_joint": 0.15,
             "hand_l_proximal_joint": 0.75,
             "hand_r_proximal_joint": 0.75,
-            "joint_rz": 0.0,
             # "head_pan_joint": 0.0,
-            "joint_y": 0.0,
             # "head_tilt_joint": -0.79,
-            "joint_x": 0.0,            
+            "base_l_drive_wheel_joint": 0.0,
+            "base_r_drive_wheel_joint": 0.0,
+            "base_roll_joint": 0.0,
+        },
+        joint_vel={
+            "wrist_roll_joint": 0.0,
+            "wrist_flex_joint": 0.0,
+            "arm_roll_joint": 0.0,
+            "arm_flex_joint": 0.0,
+            "arm_lift_joint": 0.0,
+            "torso_lift_joint": 0.0,
+            "hand_l_proximal_joint": 0.0,
+            "hand_r_proximal_joint": 0.0,
+            "base_l_drive_wheel_joint": 0.0,
+            "base_r_drive_wheel_joint": 0.0,
+            "base_roll_joint": 0.0,
         },
     ),
     actuators={
         "base": ImplicitActuatorCfg(
-            joint_names_expr=["joint_x", "joint_y", "joint_rz"],
+            joint_names_expr=["base_l_drive_wheel_joint", "base_r_drive_wheel_joint", "base_roll_joint"],
             velocity_limit={
-                "joint_x": 0.2, # m/s?
-                "joint_y": 0.2, # m/s?
-                "joint_rz": 1.0, # rad/s? seen different values here: 1.5 and 1.0. moveit uses 1.0, paper uses 1.5
+                "base_l_drive_wheel_joint": 8.0, # these values are from hsr-omniverse velocity limits
+                "base_r_drive_wheel_joint": 8.0, 
+                "base_roll_joint": 8.0, 
             },
-            effort_limit=100000.0,
-            stiffness=0.0,
-            damping=100,
+            effort_limit={
+                "base_l_drive_wheel_joint": 664.020019, # default values from offical hsr USD file - this is different than the URDF file
+                "base_r_drive_wheel_joint": 664.020019,
+                "base_roll_joint": 2067.599853,},
+            stiffness=15000.0, # default values from offical hsr-omniverse hsr.py file
+            damping=0.0, # default values from offical hsr-omniverse hsr.py file
         ),
         "arm": ImplicitActuatorCfg(
             joint_names_expr=["arm_lift_joint", "arm_flex_joint", "arm_roll_joint", "wrist_flex_joint", "wrist_roll_joint"],
             velocity_limit={
-                "arm_lift_joint": 0.2,
+                "arm_lift_joint": 0.2, #  TODO: check these values - values in hsr-omniverse are different
                 "arm_flex_joint": 1.2,
                 "arm_roll_joint": 2.0,
                 "wrist_flex_joint": 1.5,
                 "wrist_roll_joint": 1.5,
             },
-            effort_limit=1000.0, # 10.0 
+            effort_limit=10000.0, # 10.0 
             stiffness={
                 "arm_lift_joint": 900.0,
                 "arm_flex_joint": 2000.0,
@@ -84,35 +104,37 @@ HSRB_CFG = ArticulationCfg(
                 "arm_lift_joint": 100.0,
                 "arm_flex_joint": 20.0,
                 "arm_roll_joint": 1.0,
-                "wrist_flex_joint": 0.0,
+                "wrist_flex_joint": 100.0,
                 "wrist_roll_joint": 0.0,
             },
         ),
-        "head": ImplicitActuatorCfg(
-            joint_names_expr=["head_pan_joint", "head_tilt_joint"],
-            effort_limit=50.0, # 5.0
-            velocity_limit={
-                "head_pan_joint": 1.0,
-                "head_tilt_joint": 1.0,
-            },
-            stiffness={
-                "head_pan_joint": 1200.0,
-                "head_tilt_joint": 1200.0,
-            },
-            damping={
-                "head_pan_joint": 10.0,
-                "head_tilt_joint": 10.0, 
-            },
-        ),
+        # "head": ImplicitActuatorCfg(
+        #     joint_names_expr=["head_pan_joint", "head_tilt_joint"],
+        #     effort_limit=50.0, # 5.0
+        #     velocity_limit={
+        #         "head_pan_joint": 1.0,
+        #         "head_tilt_joint": 1.0,
+        #     },
+        #     stiffness={
+        #         "head_pan_joint": 1200.0,
+        #         "head_tilt_joint": 1200.0,
+        #     },
+        #     damping={
+        #         "head_pan_joint": 10.0,
+        #         "head_tilt_joint": 10.0, 
+        #     },
+        # ),
         "gripper": ImplicitActuatorCfg(
-            joint_names_expr=["hand_l_proximal_joint", "hand_r_proximal_joint"],
-            effort_limit=100.0,# 1.0
+            joint_names_expr=["hand_l_proximal_joint", "hand_r_proximal_joint", "hand_l_distal_joint", "hand_r_distal_joint"],
+            effort_limit=200.0,# 1.0
             # stiffness=1e5, below values are from moveit config, should they be higher?
             stiffness={
-                "hand_l_proximal_joint": 5000.0,
-                "hand_r_proximal_joint": 5000.0,
+                "hand_l_proximal_joint": 2.0,
+                "hand_r_proximal_joint": 2.0,
+                "hand_l_distal_joint": 2.0,
+                "hand_r_distal_joint": 2.0,
             },
-            damping=1000, # 0.1
+            damping=0.5, # 0.1
         ),
     },
 )
@@ -125,6 +147,43 @@ The following control configuration is used:
 * Hand: binary close/open control
 
 """
+
+HSRB_STUDENT_CFG = HSRB_CFG
+
+# HSRB_STUDENT_CFG = HSRB_CFG.replace(
+#     spawn=sim_utils.UsdFileCfg(
+#         # usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s.usd",
+#         usd_path="/workspace/isaaclab/source/standalone/hsrb/hsrb4s",
+#         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
+#             enabled_self_collisions=True,
+#             solver_position_iteration_count=4,
+#             solver_velocity_iteration_count=4,
+#             sleep_threshold=0.005,
+#             stabilization_threshold=0.001,
+#         ),
+#         activate_contact_sensors=True,
+#     )
+# )
+
+
+HSRB_SCANDOTS_CFG = RayCasterCfg(
+    prim_path="{ENV_REGEX_NS}/Robot/base_link",
+    offset=RayCasterCfg.OffsetCfg(pos=(0.8, 0.0, 20.0), rot=(0.0, 0.0, 0.0, 1.0)),
+    attach_yaw_only=True,
+    pattern_cfg=patterns.GridPatternCfg(resolution=0.16, size=[1.6, 1.6]), # 121 points
+    debug_vis=True,
+    mesh_prim_paths=["/World/ground"],
+)
+
+### HSRB_SCANDOTS_CFG for active perception
+# HSRB_SCANDOTS_CFG = RayCasterCfg(
+#     prim_path="{ENV_REGEX_NS}/Robot/head_rgbd_sensor_link",
+#     offset=RayCasterCfg.OffsetCfg(pos=(0.0, 1.0, 20.0), rot=(1.0, 0.0, 0.0, 0.0)), # rot=(0.0, 0.0, 0.0, 1.0)
+#     attach_yaw_only=True,
+#     pattern_cfg=patterns.GridPatternCfg(resolution=0.16, size=[1.6, 1.6]), # 121 points
+#     debug_vis=True,
+#     mesh_prim_paths=["/World/ground"],
+# )
 
 HSRB_LIDAR_CFG = HOKUYO_UST_20LX_RAYCASTER_CFG.replace(
     offset=RayCasterCfg.OffsetCfg(pos=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0, 1.0)),
@@ -152,8 +211,8 @@ HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
     spawn=sim_utils.PinholeCameraCfg(
         focal_length=24.0, focus_distance=400.0, horizontal_aperture=58, clipping_range=(0.1, 10.0)
     ),
-    width=64,
-    height=48,
+    width=87,
+    height=58,
 )
 
 """Configuration of the HSRB's depth camera sensor, implemented as a tiled camera."""
@@ -161,3 +220,31 @@ HSRB_TILED_DEPTH_CAMERA_CFG = TiledCameraCfg(
 HSRB_DEFAULT_CAMERA_INTRINSICS = torch.tensor([[264.8276, 0.0000, 320.0000],
                                                 [0.0000, 264.8276, 240.0000],
                                                 [0.0000, 0.0000, 1.0000]]).to("cuda")
+
+
+CYLINDER_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path=f"/workspace/isaaclab/source/standalone/hsrb/cylinder.usd",
+        activate_contact_sensors=True,
+        collision_props=sim_utils.CollisionPropertiesCfg(collision_enabled=True,contact_offset=0.00, rest_offset=0.0),
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=True,
+        ),
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        joint_pos={"joint_x": 1.0, "joint_y": 1.0, "joint_z": 0.5},
+    ),
+    actuators={
+        "base": ImplicitActuatorCfg(
+            joint_names_expr=["joint_x", "joint_y", "joint_z"],
+            velocity_limit={
+                "joint_x": 0.5,
+                "joint_y": 0.5,
+                "joint_z": 0.5,
+            },
+            effort_limit=100000.0,
+            stiffness=1000.0,
+            damping=100,
+        ),
+    },
+)

@@ -26,4 +26,8 @@ from .mesh_terrains_cfg import (
     MeshRepeatedCylindersTerrainCfg,
     MeshRepeatedPyramidsTerrainCfg,
     MeshStarTerrainCfg,
+    MeshCorridorTerrainCfg,
+    LShapedMeshCorridorTerrainCfg,
+    MeshGridTerrainCfg,
+    LiftCubeEnvTerrainCfg
 )

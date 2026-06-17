@@ -163,12 +163,14 @@ def run_simulator(sim: sim_utils.SimulationContext, entities: dict[str, Articula
         # apply default actions to the quadrupedal robots
         for robot in entities.values():
             # generate random joint positions
-            joint_pos_target = robot.data.default_joint_pos + torch.rand_like(robot.data.joint_pos) * 1.0 # torch
+            # default_joint_vel = robot.data.default_joint_vel + torch.zeros_like(robot.data.default_joint_vel) # torch
+            # default_joint_vel[:, :] = 5.0
             # apply action to the robot
             robot.set_joint_position_target(joint_pos_target)
             print(f"[INFO]: robot.actuators: {robot.actuators}")
             print(f"[INFO]: robot.data.joint_names: {robot.data.joint_names}")
             print(f"[INFO]: joint position targets: {joint_pos_target}")
+            # robot.set_joint_velocity_target(default_joint_vel)
             # write data to sim
             robot.write_data_to_sim()
         # perform step

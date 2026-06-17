@@ -27,7 +27,7 @@ params:
           val: 0
         fixed_sigma: True
     mlp:
-      units: [64, 64]
+      units: [256, 128, 64]
       activation: elu
       d2rl: False
 
@@ -40,7 +40,7 @@ params:
   load_path: '' # path to the checkpoint to load
 
   config:
-    name: reach_franka
+    name: hsrb_reach_ppo
     env_name: rlgpu
     device: 'cuda:0'
     device_name: 'cuda:0'
@@ -61,15 +61,15 @@ params:
     schedule_type: legacy
     kl_threshold: 0.01
     score_to_win: 10000
-    max_epochs: 1000
-    save_best_after: 200
-    save_frequency: 100
+    max_epochs: 50000
+    save_best_after: 1000
+    save_frequency: 5000
     print_stats: True
     grad_norm: 1.0
     entropy_coef: 0.01
     truncate_grads: True
     e_clip: 0.2
-    horizon_length: 24
+    horizon_length: 96
     minibatch_size: 24576
     mini_epochs: 5
     critic_coef: 2

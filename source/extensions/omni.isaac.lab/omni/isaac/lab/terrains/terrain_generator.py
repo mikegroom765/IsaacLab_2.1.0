@@ -16,7 +16,7 @@ from omni.isaac.lab.utils.timer import Timer
 from omni.isaac.lab.utils.warp import convert_to_warp_mesh
 
 from .height_field import HfTerrainBaseCfg
-from .terrain_generator_cfg import FlatPatchSamplingCfg, SubTerrainBaseCfg, TerrainGeneratorCfg
+from .terrain_generator_cfg import FlatPatchSamplingCfg, SubTerrainBaseCfg, TerrainGeneratorCfg, VariedGridTerrainGeneratorCfg
 from .trimesh.utils import make_border
 from .utils import color_meshes_by_height, find_flat_patches
 
@@ -319,3 +319,171 @@ class TerrainGenerator:
             dump_yaml(sub_terrain_meta_filename, cfg)
         # return the generated mesh
         return mesh, origin
+
+class VariedGridTerrainGenerator(TerrainGenerator):
+
+    table_locations: list[list[tuple[int, int]]]
+    """A list of table locations for each sub-terrain. Each sub-terrain grid is a list of 2D grid coordinates."""
+
+    def __init__(self, cfg: VariedGridTerrainGeneratorCfg, device: str = "cpu"):
+        """Initialize the terrain generator.
+
+        Args:
+            cfg: Configuration for the terrain generator.
+            device: The device to use for the flat patches tensor.
+        """
+        self.table_locations = cfg.table_locs
+
+        # check inputs
+        if len(cfg.sub_terrains) == 0:
+            raise ValueError("No sub-terrains specified! Please add at least one sub-terrain.")
+        # store inputs
+        self.cfg = cfg
+        self.device = device
+        # -- valid patches
+        self.flat_patches = {}
+        # set common values to all sub-terrains config
+        for sub_cfg in self.cfg.sub_terrains.values():
+            # size of all terrains
+            sub_cfg.size = self.cfg.size
+            # params for height field terrains
+            if isinstance(sub_cfg, HfTerrainBaseCfg):
+                sub_cfg.horizontal_scale = self.cfg.horizontal_scale
+                sub_cfg.vertical_scale = self.cfg.vertical_scale
+                sub_cfg.slope_threshold = self.cfg.slope_threshold
+
+        # set the seed for reproducibility
+        if self.cfg.seed is not None:
+            torch.manual_seed(self.cfg.seed)
+            np.random.seed(self.cfg.seed)
+        # create a list of all sub-terrains
+        self.terrain_meshes = list()
+        self.terrain_origins = np.zeros((self.cfg.num_rows, self.cfg.num_cols, 3))
+
+        # parse configuration and add sub-terrains
+        # create terrains based on curriculum or randomly
+        if self.cfg.curriculum:
+            with Timer("[INFO] Generating terrains based on curriculum took"):
+                self._generate_curriculum_terrains()
+        else:
+            with Timer("[INFO] Generating terrains randomly took"):
+                self._generate_random_terrains()
+        # add a border around the terrains
+        self._add_terrain_border()
+        # combine all the sub-terrains into a single mesh
+        self.terrain_mesh = trimesh.util.concatenate(self.terrain_meshes)
+
+        # color the terrain mesh
+        if self.cfg.color_scheme == "height":
+            self.terrain_mesh = color_meshes_by_height(self.terrain_mesh)
+        elif self.cfg.color_scheme == "random":
+            self.terrain_mesh.visual.vertex_colors = np.random.choice(
+                range(256), size=(len(self.terrain_mesh.vertices), 4)
+            )
+        elif self.cfg.color_scheme == "none":
+            pass
+        else:
+            raise ValueError(f"Invalid color scheme: {self.cfg.color_scheme}.")
+
+        # offset the entire terrain and origins so that it is centered
+        # -- terrain mesh
+        transform = np.eye(4)
+        transform[:2, -1] = -self.cfg.size[0] * self.cfg.num_rows * 0.5, -self.cfg.size[1] * self.cfg.num_cols * 0.5
+        self.terrain_mesh.apply_transform(transform)
+        # -- terrain origins
+        self.terrain_origins += transform[:3, -1]
+        # -- valid patches
+        terrain_origins_torch = torch.tensor(self.terrain_origins, dtype=torch.float, device=self.device).unsqueeze(2)
+        for name, value in self.flat_patches.items():
+            self.flat_patches[name] = value + terrain_origins_torch
+ 
+    def _get_terrain_mesh(self, tables_locs: list[tuple[int, int]] | None, cfg: SubTerrainBaseCfg) -> tuple[trimesh.Trimesh, np.ndarray]:
+        """Generate a grid sub-terrain mesh based on the input tables_locs parameter.
+
+        If caching is enabled, the sub-terrain is cached and loaded from the cache if it exists.
+        The cache is stored in the cache directory specified in the configuration.
+
+        .. Note:
+            This function centers the 2D center of the mesh and its specified origin such that the
+            2D center becomes :math:`(0, 0)` instead of :math:`(size[0] / 2, size[1] / 2).
+
+        Args:
+            difficulty: The difficulty parameter.
+            cfg: The configuration of the sub-terrain.
+
+        Returns:
+            The sub-terrain mesh and origin.
+        """
+        # add other parameters to the sub-terrain configuration
+        # cfg.difficulty = float(difficulty)
+        cfg.seed = self.cfg.seed
+        # generate hash for the sub-terrain
+        sub_terrain_hash = dict_to_md5_hash(cfg.to_dict())
+        # generate the file name
+        sub_terrain_cache_dir = os.path.join(self.cfg.cache_dir, sub_terrain_hash)
+        sub_terrain_stl_filename = os.path.join(sub_terrain_cache_dir, "mesh.stl")
+        sub_terrain_csv_filename = os.path.join(sub_terrain_cache_dir, "origin.csv")
+        sub_terrain_meta_filename = os.path.join(sub_terrain_cache_dir, "cfg.yaml")
+
+        # check if hash exists - if true, load the mesh and origin and return
+        if self.cfg.use_cache and os.path.exists(sub_terrain_stl_filename):
+            # load existing mesh
+            mesh = trimesh.load_mesh(sub_terrain_stl_filename)
+            origin = np.loadtxt(sub_terrain_csv_filename, delimiter=",")
+            # return the generated mesh
+            return mesh, origin
+
+        # generate the terrain
+        if tables_locs is not None:
+            meshes, origin = cfg.function(tables_locs, cfg)
+        else:
+            meshes, origin = cfg.function(cfg)
+        mesh = trimesh.util.concatenate(meshes)
+        # offset mesh such that they are in their center
+        transform = np.eye(4)
+        transform[0:2, -1] = -cfg.size[0] * 0.5, -cfg.size[1] * 0.5
+        mesh.apply_transform(transform)
+        # change origin to be in the center of the sub-terrain
+        origin += transform[0:3, -1]
+
+        # if caching is enabled, save the mesh and origin
+        if self.cfg.use_cache:
+            # create the cache directory
+            os.makedirs(sub_terrain_cache_dir, exist_ok=True)
+            # save the data
+            mesh.export(sub_terrain_stl_filename)
+            np.savetxt(sub_terrain_csv_filename, origin, delimiter=",", header="x,y,z")
+            dump_yaml(sub_terrain_meta_filename, cfg)
+        # return the generated mesh
+        return mesh, origin
+
+    def _generate_random_terrains(self):
+        """Add terrains based on randomly sampled difficulty parameter."""
+        # normalize the proportions of the sub-terrains
+        proportions = np.array([sub_cfg.proportion for sub_cfg in self.cfg.sub_terrains.values()])
+        proportions /= np.sum(proportions)
+        # create a list of all terrain configs
+        sub_terrains_cfgs = list(self.cfg.sub_terrains.values())
+
+        # randomly sample sub-terrains
+        for index in range(self.cfg.num_rows * self.cfg.num_cols):
+            # coordinate index of the sub-terrain
+            (sub_row, sub_col) = np.unravel_index(index, (self.cfg.num_rows, self.cfg.num_cols))
+            # randomly sample terrain index
+            if self.cfg.random_sample:
+                sub_index = np.random.choice(len(proportions), p=proportions)
+            else:
+                sub_index = index
+            # randomly sample difficulty parameter
+            # difficulty = np.random.uniform(*self.cfg.difficulty_range)
+
+            # get the table location list
+            if self.table_locations is not None:
+                table_locs = self.table_locations[index]
+            else:
+                table_locs = None
+
+            # generate terrain
+            mesh, origin = self._get_terrain_mesh(table_locs, sub_terrains_cfgs[sub_index])
+            # add to sub-terrains
+            self._add_sub_terrain(mesh, origin, sub_row, sub_col, sub_terrains_cfgs[sub_index])
